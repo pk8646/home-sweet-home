@@ -299,6 +299,13 @@
     avviata = true;
     avviaOrologio();
     window.addEventListener('hashchange', function () { disegnaVista(true); });
+    // L'evento hashchange arriva dopo il clic: si segna subito "in-corso" così chi aspetta
+    // data-casa-nostra="pronta" non vede ancora lo stato della vista precedente.
+    document.addEventListener('click', function (ev) {
+      if (ev.defaultPrevented || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+      var link = ev.target && ev.target.closest ? ev.target.closest('a[href^="#"]') : null;
+      if (link && !link.target && link.hash !== location.hash) segnaStato('in-corso');
+    });
     return disegnaVista(false);
   }
 
