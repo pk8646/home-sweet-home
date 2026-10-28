@@ -1,1 +1,87 @@
-/* Stili della sezione meteo. */
+/* Stili della sezione meteo: scheda della dashboard e gruppo "Località del meteo" nelle impostazioni. */
+
+.meteo-localita { margin: 0 0 4px; color: var(--testo-tenue); font-weight: 600; }
+
+.meteo-attuale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.meteo-attuale .meteo-emoji { font-size: 2.5rem; line-height: 1; }
+.meteo-temperatura { font-size: 2.75rem; font-weight: 700; line-height: 1; }
+.meteo-condizione { font-size: 1.125rem; }
+
+.meteo-dettagli {
+  list-style: none;
+  margin: 8px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--testo-tenue);
+}
+
+.meteo-giorni { list-style: none; margin: 0; padding: 0; }
+
+.meteo-giorno {
+  display: grid;
+  grid-template-columns: 6.5em 1.75em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--bordo);
+}
+
+.meteo-giorno:last-child { border-bottom: 0; }
+.meteo-giorno-data { font-weight: 600; }
+.meteo-giorno-condizione { overflow-wrap: anywhere; }
+.meteo-giorno-temperature { white-space: nowrap; }
+.meteo-minima { color: var(--testo-tenue); }
+
+.meteo-aggiornato { margin: 8px 0 0; color: var(--testo-tenue); font-size: 0.9375rem; }
+
+.meteo-avviso {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--raggio-piccolo);
+  background: var(--terracotta-chiara);
+}
+
+.meteo-azioni { margin-top: 12px; display: flex; justify-content: flex-end; }
+
+@media (max-width: 420px) {
+  .meteo-giorno { grid-template-columns: 5.5em 1.5em minmax(0, 1fr); }
+  .meteo-giorno-temperature { grid-column: 3; }
+}
+
+/* Gruppo "Località del meteo" */
+
+.localita-attuale { margin: 0 0 12px; font-weight: 600; }
+
+.localita-ricerca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.localita-ricerca .localita-campo { flex: 1 1 14em; min-width: 0; }
+.localita-campo { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.localita-campo .campo { width: 100%; }
+.localita-ricerca .pulsante { margin-bottom: 8px; }
+
+.localita-elenco {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.localita-scelta { width: 100%; text-align: left; overflow-wrap: anywhere; }
+
+.localita-coordinate { margin-top: 8px; }
+.localita-coordinate .messaggio-errore[hidden] { display: none; }
