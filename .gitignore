@@ -1,0 +1,6 @@
+# Dati personali: mai nel repository
+casa-nostra-backup-*.json
+*.zip
+
+# Strumenti locali
+node_modules/

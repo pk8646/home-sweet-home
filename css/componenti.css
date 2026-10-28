@@ -1,0 +1,203 @@
+/* Casa Nostra — componenti condivisi: schede, pulsanti, campi, liste, messaggi, toast, dialoghi. */
+
+/* ---------- schede ---------- */
+
+.scheda {
+  background: var(--carta);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  box-shadow: var(--ombra);
+  padding: var(--spazio);
+  min-width: 0;
+}
+
+.scheda-titolo { font-size: 1.375rem; margin-bottom: 12px; }
+.scheda-icona { margin-right: 2px; }
+
+/* ---------- pulsanti ---------- */
+
+.pulsante {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--tocco);
+  min-width: var(--tocco);
+  padding: 8px 20px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.15s ease;
+}
+
+.pulsante:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.pulsante-primario { background: var(--terracotta); color: #fff; }
+.pulsante-primario:hover:not(:disabled) { background: var(--terracotta-scura); }
+
+.pulsante-secondario { background: var(--carta); color: var(--testo); border-color: var(--bordo); }
+.pulsante-secondario:hover:not(:disabled) { background: var(--crema); }
+
+.pulsante-pericolo { background: var(--errore); color: #fff; }
+
+.pulsante-icona {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tocco);
+  height: var(--tocco);
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 1.375rem;
+  cursor: pointer;
+}
+
+.pulsante-icona:hover { background: var(--crema); }
+
+/* Icona disegnata dal CSS: il testo dell'elemento resta vuoto, il nome accessibile è aria-label. */
+.pulsante-elimina::before { content: "🗑️"; }
+
+/* ---------- campi ---------- */
+
+.etichetta { display: block; font-weight: 600; margin-bottom: 6px; }
+
+.campo {
+  display: block;
+  width: 100%;
+  min-height: var(--tocco);
+  padding: 8px 14px;
+  background: #fff;
+  border: 2px solid var(--bordo);
+  border-radius: var(--raggio-piccolo);
+}
+
+.campo:focus { border-color: var(--salvia); }
+
+textarea.campo { resize: vertical; }
+
+.casella {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--salvia);
+}
+
+.aiuto { font-size: 1rem; color: var(--testo-tenue); margin: 4px 0 0; }
+
+/* ---------- testi e messaggi ---------- */
+
+.vuoto { color: var(--testo-tenue); margin: 8px 0; }
+
+.messaggio-errore {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--raggio-piccolo);
+  background: var(--errore-chiaro);
+  color: var(--errore);
+}
+
+.avviso {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border-radius: var(--raggio-piccolo);
+  border: 1px solid currentColor;
+}
+
+.avviso-errore { background: var(--errore-chiaro); color: var(--errore); }
+.avviso-info { background: var(--salvia-chiara); color: var(--salvia); }
+
+.vedi-tutti {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tocco);
+  min-width: var(--tocco);
+  padding: 4px 8px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* ---------- toast ---------- */
+
+.toast-area {
+  position: fixed;
+  z-index: 40;
+  left: var(--spazio);
+  right: var(--spazio);
+  bottom: calc(var(--altezza-nav) + 12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 34rem;
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--raggio-piccolo);
+  background: var(--testo);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+}
+
+.toast-errore { background: var(--errore); }
+.toast-successo { background: var(--successo); }
+.toast-testo { flex: 1 1 auto; }
+
+.toast-chiudi {
+  width: var(--tocco);
+  height: var(--tocco);
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  .toast-area { left: calc(var(--larghezza-nav) + var(--spazio)); bottom: var(--spazio); }
+}
+
+/* ---------- dialoghi ---------- */
+
+.dialogo {
+  width: calc(100% - 2 * var(--spazio));
+  max-width: 34rem;
+  max-height: calc(100% - 2 * var(--spazio));
+  overflow: auto;
+  padding: 20px;
+  border: 0;
+  border-radius: var(--raggio);
+  background: var(--carta);
+  color: var(--testo);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.dialogo::backdrop { background: rgba(43, 36, 32, 0.55); }
+
+.dialogo-titolo { font-size: 1.375rem; }
+.dialogo-messaggio { margin: 0 0 16px; }
+.dialogo-riga { margin-bottom: 14px; }
+.dialogo-riga-casella { display: flex; align-items: center; gap: 12px; min-height: var(--tocco); }
+.dialogo-riga-casella .etichetta { margin: 0; }
+.dialogo-errore { margin: 0 0 12px; color: var(--errore); font-weight: 600; }
+
+.dialogo-pulsanti {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}

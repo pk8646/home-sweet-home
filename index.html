@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="it" data-casa-nostra="avvio">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6efe3">
+  <meta name="description" content="Casa Nostra: la dashboard di casa con spesa, agenda, attività, promemoria, meteo e foto.">
+  <title>Casa Nostra</title>
+  <link rel="icon" href="data:,">
+
+  <!-- Fondamenta -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/componenti.css">
+  <!-- Un foglio per sezione -->
+  <link rel="stylesheet" href="css/sezioni/dashboard.css">
+  <link rel="stylesheet" href="css/sezioni/spesa.css">
+  <link rel="stylesheet" href="css/sezioni/agenda.css">
+  <link rel="stylesheet" href="css/sezioni/attivita.css">
+  <link rel="stylesheet" href="css/sezioni/casa.css">
+  <link rel="stylesheet" href="css/sezioni/meteo.css">
+  <link rel="stylesheet" href="css/sezioni/foto.css">
+  <link rel="stylesheet" href="css/sezioni/impostazioni.css">
+</head>
+<body>
+  <div class="app">
+    <header class="intestazione">
+      <h1 class="intestazione-nome" id="nome-casa">Casa Nostra</h1>
+      <div class="orologio" id="orologio">
+        <span class="orologio-ora" id="orologio-ora"></span>
+        <span class="orologio-data" id="orologio-data"></span>
+      </div>
+    </header>
+    <nav class="navigazione" id="navigazione" aria-label="Sezioni"></nav>
+    <div class="avvisi-globali" id="avvisi-globali"></div>
+    <main class="contenuto" id="contenuto" tabindex="-1"></main>
+  </div>
+  <div class="toast-area" id="toast-area"></div>
+  <noscript><p class="noscript">Casa Nostra ha bisogno di JavaScript per funzionare.</p></noscript>
+
+  <!-- Nucleo (ordine importante) -->
+  <script src="js/casanostra.js"></script>
+  <script src="js/date.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/errori.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/dialoghi.js"></script>
+  <script src="js/impostazioni.js"></script>
+  <!-- Dominio: regole pure, senza DOM -->
+  <script src="js/dominio/spesa.js"></script>
+  <script src="js/dominio/agenda.js"></script>
+  <script src="js/dominio/attivita.js"></script>
+  <script src="js/dominio/casa.js"></script>
+  <!-- Servizi -->
+  <script src="js/meteo.js"></script>
+  <script src="js/foto.js"></script>
+  <script src="js/backup.js"></script>
+  <script src="js/pwa.js"></script>
+  <!-- Sezioni e schede della dashboard (si registrano in CasaNostra.ui) -->
+  <script src="js/sezioni/dashboard.js"></script>
+  <script src="js/sezioni/spesa.js"></script>
+  <script src="js/sezioni/agenda.js"></script>
+  <script src="js/sezioni/attivita.js"></script>
+  <script src="js/sezioni/casa.js"></script>
+  <script src="js/sezioni/meteo.js"></script>
+  <script src="js/sezioni/foto.js"></script>
+  <script src="js/sezioni/impostazioni.js"></script>
+  <!-- Avvio: sempre per ultimo -->
+  <script src="js/avvio.js"></script>
+</body>
+</html>

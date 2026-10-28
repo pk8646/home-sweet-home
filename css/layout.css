@@ -1,0 +1,141 @@
+/* Casa Nostra — impaginazione: intestazione con data e ora, barra di navigazione, contenuto.
+   Verticale e schermi stretti: navigazione in basso. Orizzontale (≥ 700 px): navigazione laterale. */
+
+.app { min-height: 100vh; }
+
+/* ---------- intestazione ---------- */
+
+.intestazione {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px var(--spazio);
+  padding: 12px var(--spazio) 8px;
+}
+
+.intestazione-nome {
+  font-size: 1.5rem;
+  margin: 0;
+  color: var(--terracotta-scura);
+  overflow-wrap: anywhere;
+}
+
+.orologio {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+.orologio-ora {
+  font-size: 2.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.orologio-data { font-size: 1.125rem; color: var(--testo-tenue); }
+
+/* ---------- contenuto ---------- */
+
+.contenuto {
+  padding: 0 var(--spazio) calc(var(--altezza-nav) + var(--spazio) + env(safe-area-inset-bottom, 0px));
+  outline: none;
+}
+
+.vista-titolo { font-size: 1.75rem; margin: 8px 0 16px; outline: none; }
+
+.avvisi-globali { padding: 0 var(--spazio); }
+.avvisi-globali:empty { display: none; }
+
+/* ---------- navigazione (in basso) ---------- */
+
+.navigazione {
+  position: fixed;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--carta);
+  border-top: 1px solid var(--bordo);
+  box-shadow: 0 -2px 8px rgba(70, 45, 20, 0.08);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.navigazione-lista {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navigazione-lista li { flex: 1 1 0; min-width: 0; }
+
+.navigazione-voce {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--altezza-nav);
+  min-width: var(--tocco);
+  padding: 4px 2px;
+  color: var(--testo);
+  text-decoration: none;
+  border-radius: var(--raggio-piccolo);
+}
+
+.navigazione-icona { font-size: 1.875rem; line-height: 1; }
+
+.navigazione-testo {
+  font-size: 0.875rem;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.navigazione-voce[aria-current="page"] {
+  background: var(--salvia-chiara);
+  color: var(--salvia);
+  font-weight: 700;
+  box-shadow: inset 0 -4px 0 var(--salvia);
+}
+
+/* Su schermi stretti restano solo le icone grandi (il nome resta come nome accessibile). */
+@media (max-width: 639px) {
+  .navigazione-testo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* ---------- orizzontale: navigazione laterale ---------- */
+
+@media (orientation: landscape) and (min-width: 700px) {
+  .app { padding-left: var(--larghezza-nav); }
+
+  .navigazione {
+    top: 0;
+    right: auto;
+    width: var(--larghezza-nav);
+    border-top: 0;
+    border-right: 1px solid var(--bordo);
+    box-shadow: 2px 0 8px rgba(70, 45, 20, 0.08);
+    padding: 8px 6px;
+    overflow-y: auto;
+  }
+
+  .navigazione-lista { flex-direction: column; height: 100%; gap: 4px; }
+  .navigazione-lista li { flex: 1 1 0; max-height: 92px; min-height: 60px; }
+  .navigazione-voce { height: 100%; min-height: 60px; }
+  .navigazione-testo { position: static; width: auto; height: auto; clip: auto; }
+  .navigazione-voce[aria-current="page"] { box-shadow: inset 4px 0 0 var(--salvia); }
+
+  .contenuto { padding-bottom: var(--spazio); }
+}
