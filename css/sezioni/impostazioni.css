@@ -45,3 +45,14 @@
   gap: 8px;
   margin-top: 16px;
 }
+
+/* Backup dati (#11): avviso sulla dashboard e gruppo nelle impostazioni */
+.scheda-avviso-backup { grid-column: 1 / -1; }
+.avviso-backup-azioni {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.backup-importazione { margin-top: 16px; }
+.backup-errore { color: var(--errore); }

@@ -18,11 +18,30 @@
     return Promise.resolve().then(function () {
       return def.disegna(corpo, contesto);
     }).then(function (esito) {
-      if (esito === false) voce.cornice.hidden = true;
+      // Una scheda che non ha niente da mostrare esce dalla griglia (non lascia una cella vuota);
+      // se ridisegnandola torna visibile, rientra al suo posto.
+      if (esito === false) {
+        voce.cornice.hidden = true;
+        if (voce.cornice.parentNode) voce.cornice.parentNode.removeChild(voce.cornice);
+      } else {
+        rientra(voce);
+      }
     }).catch(function (err) {
       CasaNostra.errori.registra(err, 'disegno della scheda ' + def.id);
+      rientra(voce);
       ui.svuota(corpo).appendChild(ui.messaggioErrore(err, 'Non è stato possibile mostrare questa scheda.'));
     });
+  }
+
+  /** Rimette nella griglia, nella sua posizione, una scheda che ne era uscita. */
+  function rientra(voce) {
+    var i = disegnate.indexOf(voce);
+    if (voce.cornice.parentNode || i < 0 || !voce.griglia) return;
+    var dopo = null;
+    for (var j = i + 1; j < disegnate.length && !dopo; j++) {
+      if (disegnate[j].cornice.parentNode === voce.griglia) dopo = disegnate[j].cornice;
+    }
+    voce.griglia.insertBefore(voce.cornice, dopo);
   }
 
   function creaCornice(def) {
@@ -60,7 +79,7 @@
         return;
       }
       disegnate = visibili.map(creaCornice);
-      disegnate.forEach(function (v) { griglia.appendChild(v.cornice); });
+      disegnate.forEach(function (v) { v.griglia = griglia; griglia.appendChild(v.cornice); });
       return Promise.all(disegnate.map(disegnaScheda));
     });
   }
