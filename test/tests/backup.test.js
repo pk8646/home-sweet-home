@@ -222,7 +222,7 @@ function guastoAttivita() {
     return put.apply(this, arguments);
   };
 }
-const senzaBenvenutoConGuasto = '(' + senzaBenvenuto + ')();(' + guastoAttivita + ')();';
+const senzaBenvenutoConGuasto = senzaBenvenuto + '(' + guastoAttivita + ')();';
 
 test('un errore a metà della transazione di importazione lascia i dati attuali identici', async ({ apri }) => {
   const app = await apri({ percorso: '#/impostazioni', scriptIniziale: senzaBenvenutoConGuasto });

@@ -5,6 +5,7 @@ const { execFileSync } = require('child_process');
 const { test, assert, attendi } = require('../lib/test');
 const { meteoFinto } = require('../lib/meteo-finto');
 const img = require('../lib/immagini');
+const { conVisibile } = require('../lib/visibile');
 
 const VIEWPORT_SPEC = ['tabletOrizzontale', 'tabletVerticale', 'smartphone', 'desktop'];
 const ESCA = '<img src=x onerror="window.__iniettato=1">';
@@ -65,12 +66,7 @@ async function sezioni(app) {
 
 /** Misure di leggibilità e di uso con le dita della vista corrente. */
 function misure(page) {
-  return page.evaluate(() => {
-    const visibile = (n) => {
-      if (n.offsetParent === null && getComputedStyle(n).position !== 'fixed') return false;
-      const b = n.getBoundingClientRect();
-      return b.width > 0 && b.height > 0;
-    };
+  return page.evaluate(conVisibile(() => {
     const piccoli = Array.from(document.querySelectorAll('nav a, header button, main button, main a, main input, main select, main textarea, main summary, [role=region] button'))
       .filter((n) => visibile(n) && n.type !== 'checkbox' && n.type !== 'radio' && n.type !== 'file')
       .map((n) => { const b = n.getBoundingClientRect(); return { el: n.tagName + ' "' + (n.textContent || n.getAttribute('aria-label') || n.name || n.type).trim().slice(0, 40) + '"', w: Math.round(b.width), h: Math.round(b.height) }; })
@@ -91,7 +87,7 @@ function misure(page) {
       piccoli: piccoli,
       caselle: caselle
     };
-  });
+  }));
 }
 
 for (const viewport of VIEWPORT_SPEC) {

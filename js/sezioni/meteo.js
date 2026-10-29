@@ -23,13 +23,13 @@
   }
 
   /** 'minima°/massima°'; i lettori di schermo sentono "da minima a massima". */
-  function minimaMassima(classe, minima, massima) {
+  function minimaMassima(classe, valori) {
     return ui.el('span', { class: classe }, [
       soloLettori('da '),
-      ui.el('span', { class: 'meteo-minima', testo: gradi(minima) }),
+      ui.el('span', { class: 'meteo-minima', testo: gradi(valori.minima) }),
       ui.el('span', { 'aria-hidden': 'true', testo: '/' }),
       soloLettori(' a '),
-      ui.el('span', { class: 'meteo-massima', testo: gradi(massima) })
+      ui.el('span', { class: 'meteo-massima', testo: gradi(valori.massima) })
     ]);
   }
 
@@ -39,7 +39,7 @@
     contenitore.appendChild(ui.el('div', { class: 'meteo-attuale' }, [
       ui.el('span', { class: 'meteo-emoji', 'aria-hidden': 'true', testo: cond.emoji }),
       ui.el('span', { class: 'meteo-temperatura', testo: gradi(a.temperatura) }),
-      ui.el('span', { class: 'meteo-oggi' }, [soloLettori('Oggi '), minimaMassima('meteo-oggi-temperature', a.minima, a.massima)])
+      ui.el('span', { class: 'meteo-oggi' }, [soloLettori('Oggi '), minimaMassima('meteo-oggi-temperature', a)])
     ]));
     contenitore.appendChild(ui.el('p', { class: 'meteo-condizione', testo: cond.testo }));
     contenitore.appendChild(ui.el('p', { class: 'meteo-dettagli', testo: 'Percepita ' + gradi(a.percepita) + ' · Vento ' + Math.round(a.vento) + ' km/h' }));
@@ -59,7 +59,7 @@
     contenitore.appendChild(ui.el('ul', { class: 'meteo-giorni', 'aria-label': 'Previsione giornaliera' }, dati.giorni.map(function (g) {
       return ui.el('li', { class: 'meteo-giorno' }, [ui.el('span', { class: 'meteo-giorno-data', testo: CasaNostra.date.formattaGiornoBreve(g.data) })]
         .concat(emojiCondizione(g.codice))
-        .concat([minimaMassima('meteo-giorno-temperature', g.minima, g.massima)]));
+        .concat([minimaMassima('meteo-giorno-temperature', g)]));
     })));
   }
 
@@ -93,7 +93,7 @@
     var localita = s.copia && s.copia.localita.nome ? s.copia.localita : s.localita;
     ui.svuota(s.fondo).appendChild(ui.el('span', { class: 'meteo-fondo-localita', testo: localita.nome }));
     // spazio non separabile: in un contenitore flex uno spazio normale all'inizio del pezzo sparirebbe
-    if (s.copia) s.fondo.appendChild(ui.el('span', { class: 'meteo-fondo-orario', testo: ' · ' + testoAggiornato(s.copia.salvataIl) }));
+    if (s.copia) s.fondo.appendChild(ui.el('span', { class: 'meteo-fondo-orario', testo: '\u00a0· ' + testoAggiornato(s.copia.salvataIl) }));
     if (s.copia) {
       disegnaDati(area, s.copia.dati);
       if (s.errore) {

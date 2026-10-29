@@ -40,7 +40,7 @@ La data in cui un promemoria casa ricorrente è stato completato l'ultima volta.
 
 **Scheda**:
 Un riquadro della dashboard dedicato a una sola sezione (Meteo, Agenda, Attività, Spesa, Casa, Foto) o a un avviso. Ogni scheda si disegna da sola: se non riesce, mostra l'errore al proprio interno e le altre continuano a funzionare.
-_Evitare_: widget, card, riquadro
+_Evitare_ (nel testo in italiano: UI, identificatori, documenti in italiano): widget, card, riquadro
 
 **Previsione oraria**:
 Nella scheda Meteo, la fila di 6 caselle, una ogni 2 ore a partire dalla prossima ora intera, che copre le 12 ore seguenti anche oltre la mezzanotte. Ogni casella ha ora, emoji, temperatura e, solo dal 20% in su, la probabilità di pioggia.
