@@ -14,6 +14,19 @@
 .scheda-titolo { font-size: 1.375rem; margin-bottom: 12px; }
 .scheda-icona { margin-right: 2px; }
 
+/* Testo letto dai lettori di schermo ma non mostrato (es. la condizione meteo accanto all'emoji). */
+.solo-lettori {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- pulsanti ---------- */
 
 .pulsante {
@@ -212,7 +225,7 @@ textarea.campo { resize: vertical; }
   .dialogo-pulsanti > *, .spesa-azioni > *, .promemoria-azioni > *, .benvenuto-azioni > *,
   .avviso-backup-azioni > *, .foto-vista-comandi > *, .attivita-filtri > *, .impostazioni-riga > *,
   .localita-ricerca > *, .casa-barra > *, .intestazione > *, .orologio > *,
-  .voce-promemoria > *, .promemoria-dettagli > *, .meteo-attuale > *, .meteo-dettagli > * {
+  .voce-promemoria > *, .promemoria-dettagli > * {
     margin-right: 10px;
     margin-bottom: 4px;
   }
@@ -220,7 +233,7 @@ textarea.campo { resize: vertical; }
   .riga-aggiunta > * + *, .foto-barra > * + *, .appuntamento-azioni > * + *, .voce-appuntamento > * + *,
   .voce-prodotto > * + *, .prodotto > * + *, .voce-attivita > * + *, .attivita > * + *,
   .impostazioni-interruttore > * + *, .dialogo-riga-casella > * + *, .toast > * + *, .foto-vista-testa > * + *,
-  .pulsante > * + * {
+  .pulsante > * + *, .meteo-attuale > * + *, .meteo-fondo > * + * {
     margin-left: 10px;
   }
   /* colonne */
