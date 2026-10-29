@@ -11,7 +11,9 @@
 
   var URL_PREVISIONI = 'https://api.open-meteo.com/v1/forecast';
   var TIMEOUT_MS = 10000;
-  var GIORNI_PREVISIONE = 5;
+  var GIORNI_PREVISIONE = 3; // da domani
+  var ORE_PREVISIONE = 6;
+  var PASSO_ORE = 2;
 
   // Codici WMO usati da Open-Meteo.
   var CONDIZIONI = {
@@ -59,32 +61,73 @@
     return x;
   }
 
+  /** Probabilità di pioggia: un numero, oppure null se Open-Meteo non la fornisce per quell'ora. */
+  function probabilita(x) {
+    return x === null || x === undefined ? null : numero(x);
+  }
+
+  /**
+   * Le ORE_PREVISIONE voci orarie, una ogni PASSO_ORE ore, a partire dalla prima ora intera successiva all'ora
+   * di `current.time` (non all'orologio del dispositivo). Si contano le posizioni nell'elenco orario, che è
+   * consecutivo nel tempo reale: così anche nel giorno del cambio d'ora le caselle distano davvero 2 ore.
+   */
+  function oreDa(h, adesso) {
+    // la probabilità di pioggia può mancare per una singola ora (null), non per tutta la risposta
+    if (!h || !Array.isArray(h.time) || !Array.isArray(h.precipitation_probability) ||
+      h.precipitation_probability.length !== h.time.length) throw erroreRisposta();
+    var oraIntera = adesso.slice(0, 13) + ':00';
+    var inizio = -1;
+    for (var i = 0; i < h.time.length; i++) {
+      if (typeof h.time[i] === 'string' && h.time[i] > oraIntera) { inizio = i; break; }
+    }
+    if (inizio < 0) throw erroreRisposta();
+    var ore = [];
+    for (var k = 0; k < ORE_PREVISIONE; k++) {
+      var j = inizio + k * PASSO_ORE;
+      var t = h.time[j];
+      if (typeof t !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(t)) throw erroreRisposta();
+      ore.push({
+        ora: t.slice(11, 16),
+        codice: numero(h.weather_code && h.weather_code[j]),
+        temperatura: numero(h.temperature_2m && h.temperature_2m[j]),
+        pioggia: probabilita(h.precipitation_probability[j])
+      });
+    }
+    return ore;
+  }
+
   /** Riduce la risposta di Open-Meteo ai soli valori mostrati; lancia se manca qualcosa. */
   function normalizza(r) {
     if (!r || typeof r !== 'object' || !r.current || !r.daily || !Array.isArray(r.daily.time)) throw erroreRisposta();
     var c = r.current;
     var d = r.daily;
-    var oggi = typeof c.time === 'string' ? c.time.slice(0, 10) : '';
+    if (typeof c.time !== 'string') throw erroreRisposta();
+    var oggi = c.time.slice(0, 10);
+    var diOggi = null;
     var giorni = [];
     for (var i = 0; i < d.time.length && giorni.length < GIORNI_PREVISIONE; i++) {
       if (!CasaNostra.date.valida(d.time[i])) throw erroreRisposta();
-      if (d.time[i] <= oggi) continue;
-      giorni.push({
+      if (d.time[i] < oggi) continue;
+      var giorno = {
         data: d.time[i],
         codice: numero(d.weather_code && d.weather_code[i]),
         minima: numero(d.temperature_2m_min && d.temperature_2m_min[i]),
         massima: numero(d.temperature_2m_max && d.temperature_2m_max[i])
-      });
+      };
+      if (d.time[i] === oggi) diOggi = giorno;
+      else giorni.push(giorno);
     }
-    if (!giorni.length) throw erroreRisposta();
+    if (!diOggi || giorni.length !== GIORNI_PREVISIONE) throw erroreRisposta();
     return {
       attuale: {
         temperatura: numero(c.temperature_2m),
         percepita: numero(c.apparent_temperature),
-        umidita: numero(c.relative_humidity_2m),
         vento: numero(c.wind_speed_10m),
-        codice: numero(c.weather_code)
+        codice: numero(c.weather_code),
+        minima: diOggi.minima,
+        massima: diOggi.massima
       },
+      ore: oreDa(r.hourly, c.time),
       giorni: giorni
     };
   }
@@ -120,8 +163,10 @@
     return URL_PREVISIONI +
       '?latitude=' + encodeURIComponent(localita.latitudine) +
       '&longitude=' + encodeURIComponent(localita.longitudine) +
-      '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m' +
+      '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m' +
+      '&hourly=weather_code,temperature_2m,precipitation_probability' +
       '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+      // oggi + 3 giorni; i dati orari partono dalla mezzanotte di oggi, quindi coprono sempre le 12 ore seguenti
       '&timezone=auto&forecast_days=' + (GIORNI_PREVISIONE + 1);
   }
 
@@ -173,10 +218,22 @@
     return c;
   }
 
-  // Controlla che una copia letta da LocalStorage abbia la forma attesa.
+  // Controlla che una copia letta da LocalStorage abbia la forma attesa. Una copia nel formato precedente
+  // (senza ore né minima/massima di oggi) non è valida: si ignora e la scheda la riscarica, senza migrazione.
   function normalizzaCopia(dati) {
-    if (!dati || !dati.attuale || !Array.isArray(dati.giorni) || !dati.giorni.length) throw erroreRisposta();
-    ['temperatura', 'percepita', 'umidita', 'vento', 'codice'].forEach(function (k) { numero(dati.attuale[k]); });
+    if (!dati || !dati.attuale || !Array.isArray(dati.giorni) || dati.giorni.length !== GIORNI_PREVISIONE ||
+      !Array.isArray(dati.ore) || dati.ore.length !== ORE_PREVISIONE) throw erroreRisposta();
+    ['temperatura', 'percepita', 'vento', 'codice', 'minima', 'massima'].forEach(function (k) { numero(dati.attuale[k]); });
+    dati.giorni.forEach(function (g) {
+      if (!g || !CasaNostra.date.valida(g.data)) throw erroreRisposta();
+      ['codice', 'minima', 'massima'].forEach(function (k) { numero(g[k]); });
+    });
+    dati.ore.forEach(function (o) {
+      if (!o || !CasaNostra.date.oraValida(o.ora)) throw erroreRisposta();
+      numero(o.codice);
+      numero(o.temperatura);
+      probabilita(o.pioggia);
+    });
   }
 
   var ultimaRichiestaInMemoria = 0;

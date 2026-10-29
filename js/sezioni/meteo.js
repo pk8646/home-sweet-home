@@ -9,41 +9,66 @@
   var ui = CasaNostra.ui;
   var meteo = CasaNostra.meteo;
 
+  // Sotto questa probabilità di pioggia la casella oraria non mostra alcun dato di pioggia.
+  var SOGLIA_PIOGGIA = 20;
+
   function gradi(x) { return Math.round(x) + '°'; }
 
-  function disegnaDati(contenitore, localita, dati) {
+  function soloLettori(testo) { return ui.el('span', { class: 'solo-lettori', testo: testo }); }
+
+  /** Emoji a video, condizione a parole solo per i lettori di schermo. */
+  function emojiCondizione(codice) {
+    var c = meteo.condizione(codice);
+    return [ui.el('span', { class: 'meteo-emoji', 'aria-hidden': 'true', testo: c.emoji }), soloLettori(c.testo)];
+  }
+
+  /** 'minima°/massima°'; i lettori di schermo sentono "da minima a massima". */
+  function minimaMassima(classe, valori) {
+    return ui.el('span', { class: classe }, [
+      soloLettori('da '),
+      ui.el('span', { class: 'meteo-minima', testo: gradi(valori.minima) }),
+      ui.el('span', { 'aria-hidden': 'true', testo: '/' }),
+      soloLettori(' a '),
+      ui.el('span', { class: 'meteo-massima', testo: gradi(valori.massima) })
+    ]);
+  }
+
+  function disegnaDati(contenitore, dati) {
     var a = dati.attuale;
     var cond = meteo.condizione(a.codice);
-    contenitore.appendChild(ui.el('p', { class: 'meteo-localita', testo: localita.nome }));
     contenitore.appendChild(ui.el('div', { class: 'meteo-attuale' }, [
       ui.el('span', { class: 'meteo-emoji', 'aria-hidden': 'true', testo: cond.emoji }),
       ui.el('span', { class: 'meteo-temperatura', testo: gradi(a.temperatura) }),
-      ui.el('span', { class: 'meteo-condizione', testo: cond.testo })
+      ui.el('span', { class: 'meteo-oggi' }, [soloLettori('Oggi '), minimaMassima('meteo-oggi-temperature', a)])
     ]));
-    contenitore.appendChild(ui.el('ul', { class: 'meteo-dettagli' }, [
-      ui.el('li', { testo: 'Percepita ' + gradi(a.percepita) }),
-      ui.el('li', { testo: 'Umidità ' + Math.round(a.umidita) + '%' }),
-      ui.el('li', { testo: 'Vento ' + Math.round(a.vento) + ' km/h' })
-    ]));
-    contenitore.appendChild(ui.el('ul', { class: 'meteo-giorni', 'aria-label': 'Previsioni dei prossimi giorni' }, dati.giorni.map(function (g) {
-      var c = meteo.condizione(g.codice);
-      return ui.el('li', { class: 'meteo-giorno' }, [
-        ui.el('span', { class: 'meteo-giorno-data', testo: CasaNostra.date.formattaGiornoBreve(g.data) }),
-        ui.el('span', { class: 'meteo-emoji', 'aria-hidden': 'true', testo: c.emoji }),
-        ui.el('span', { class: 'meteo-giorno-condizione', testo: c.testo }),
-        ui.el('span', { class: 'meteo-giorno-temperature' }, [
-          ui.el('span', { class: 'meteo-minima', testo: 'min ' + gradi(g.minima) }),
-          ' ',
-          ui.el('span', { class: 'meteo-massima', testo: 'max ' + gradi(g.massima) })
-        ])
-      ]);
+    contenitore.appendChild(ui.el('p', { class: 'meteo-condizione', testo: cond.testo }));
+    contenitore.appendChild(ui.el('p', { class: 'meteo-dettagli', testo: 'Percepita ' + gradi(a.percepita) + ' · Vento ' + Math.round(a.vento) + ' km/h' }));
+    contenitore.appendChild(ui.el('ul', { class: 'meteo-ore', 'aria-label': 'Previsione oraria' }, dati.ore.map(function (o) {
+      var figli = [ui.el('span', { class: 'meteo-ora-orario', testo: o.ora })]
+        .concat(emojiCondizione(o.codice))
+        .concat([ui.el('span', { class: 'meteo-ora-temperatura', testo: gradi(o.temperatura) })]);
+      if (typeof o.pioggia === 'number' && o.pioggia >= SOGLIA_PIOGGIA) {
+        figli.push(ui.el('span', { class: 'meteo-pioggia' }, [
+          ui.el('span', { class: 'meteo-pioggia-goccia', 'aria-hidden': 'true', testo: '💧 ' }),
+          soloLettori('pioggia '),
+          Math.round(o.pioggia) + '%'
+        ]));
+      }
+      return ui.el('li', { class: 'meteo-ora' }, figli);
+    })));
+    contenitore.appendChild(ui.el('ul', { class: 'meteo-giorni', 'aria-label': 'Previsione giornaliera' }, dati.giorni.map(function (g) {
+      return ui.el('li', { class: 'meteo-giorno' }, [ui.el('span', { class: 'meteo-giorno-data', testo: CasaNostra.date.formattaGiornoBreve(g.data) })]
+        .concat(emojiCondizione(g.codice))
+        .concat([minimaMassima('meteo-giorno-temperature', g)]));
     })));
   }
 
-  /** 'Aggiornato alle HH:MM del GG/MM' (ora locale del dispositivo). */
+  /** 'agg. HH:MM' (ora locale del dispositivo); se la copia non è di oggi, anche il giorno: 'agg. GG/MM HH:MM'. */
   function testoAggiornato(ms) {
     var d = new Date(ms);
-    return 'Aggiornato alle ' + CasaNostra.date.ora(d) + ' del ' + CasaNostra.date.formattaGiornoMese(CasaNostra.date.oggi(d));
+    var giorno = CasaNostra.date.oggi(d);
+    var prefisso = giorno === CasaNostra.date.oggi() ? '' : CasaNostra.date.formattaGiornoMese(giorno) + ' ';
+    return 'agg. ' + prefisso + CasaNostra.date.ora(d);
   }
 
   // ---------- scheda della dashboard ----------
@@ -65,9 +90,12 @@
   function disegnaStato(s) {
     aggiornaPulsante(s);
     var area = ui.svuota(s.area);
+    var localita = s.copia && s.copia.localita.nome ? s.copia.localita : s.localita;
+    ui.svuota(s.fondo).appendChild(ui.el('span', { class: 'meteo-fondo-localita', testo: localita.nome }));
+    // spazio non separabile: in un contenitore flex uno spazio normale all'inizio del pezzo sparirebbe
+    if (s.copia) s.fondo.appendChild(ui.el('span', { class: 'meteo-fondo-orario', testo: '\u00a0· ' + testoAggiornato(s.copia.salvataIl) }));
     if (s.copia) {
-      disegnaDati(area, s.copia.localita.nome ? s.copia.localita : s.localita, s.copia.dati);
-      area.appendChild(ui.el('p', { class: 'meteo-aggiornato', testo: testoAggiornato(s.copia.salvataIl) }));
+      disegnaDati(area, s.copia.dati);
       if (s.errore) {
         area.appendChild(ui.el('p', { class: 'meteo-avviso', role: 'status' }, [
           ui.iconaAvviso(),
@@ -151,10 +179,11 @@
     esciScheda();
     var area = ui.el('div', { class: 'meteo-area', 'aria-live': 'polite' });
     var pulsante = ui.el('button', { type: 'button', class: 'pulsante pulsante-secondario meteo-aggiorna', testo: 'Aggiorna', disabled: true });
+    var fondo = ui.el('p', { class: 'meteo-fondo-testo' });
     corpo.appendChild(area);
-    corpo.appendChild(ui.el('div', { class: 'meteo-azioni' }, [pulsante]));
+    corpo.appendChild(ui.el('div', { class: 'meteo-fondo' }, [fondo, pulsante]));
     return CasaNostra.impostazioni.leggi().then(function (imp) {
-      var s = { area: area, pulsante: pulsante, localita: imp.localita, copia: meteo.copiaPer(imp.localita), errore: null, inCorso: null };
+      var s = { area: area, fondo: fondo, pulsante: pulsante, localita: imp.localita, copia: meteo.copiaPer(imp.localita), errore: null, inCorso: null };
       pulsante.addEventListener('click', CasaNostra.errori.protetta(function () { return aggiornaAMano(s); }, 'aggiornamento del meteo'));
       attiva = s;
       disegnaStato(s);

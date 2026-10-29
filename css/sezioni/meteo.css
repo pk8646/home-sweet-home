@@ -1,46 +1,65 @@
 /* Stili della sezione meteo: scheda della dashboard e gruppo "Località del meteo" nelle impostazioni. */
 
-.meteo-localita { margin: 0 0 4px; color: var(--testo-tenue); font-weight: 600; }
+/*
+ * Scheda Meteo compatta (#16): un solo layout fisso. Nessun testo va a capo: la situazione attuale e le
+ * righe stanno su una linea, ore e giorni sono file di caselle di larghezza fissa (griglie, che non vanno a capo).
+ */
 
 .meteo-attuale {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 0 10px;
+  white-space: nowrap;
 }
 
-.meteo-attuale .meteo-emoji { font-size: 2.5rem; line-height: 1; }
-.meteo-temperatura { font-size: 2.75rem; font-weight: 700; line-height: 1; }
-.meteo-condizione { font-size: 1.125rem; }
-
-.meteo-dettagli {
-  list-style: none;
-  margin: 8px 0 12px;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  color: var(--testo-tenue);
-}
-
-.meteo-giorni { list-style: none; margin: 0; padding: 0; }
-
-.meteo-giorno {
-  display: grid;
-  grid-template-columns: 6.5em 1.75em minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--bordo);
-}
-
-.meteo-giorno:last-child { border-bottom: 0; }
-.meteo-giorno-data { font-weight: 600; }
-.meteo-giorno-condizione { overflow-wrap: anywhere; }
-.meteo-giorno-temperature { white-space: nowrap; }
+.meteo-attuale .meteo-emoji { font-size: 2rem; line-height: 1; }
+.meteo-temperatura { font-size: 2.25rem; font-weight: 700; line-height: 1; }
+.meteo-oggi { font-size: 1.125rem; }
 .meteo-minima { color: var(--testo-tenue); }
 
-.meteo-aggiornato { margin: 8px 0 0; color: var(--testo-tenue); font-size: 0.9375rem; }
+.meteo-condizione,
+.meteo-dettagli {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meteo-condizione { margin-top: 2px; font-size: 1.125rem; line-height: 1.3; }
+.meteo-dettagli { color: var(--testo-tenue); font-size: 1rem; line-height: 1.3; }
+
+/* Le file di ore e giorni usano anche metà del margine interno della scheda: sei caselle in ~270 px. */
+.meteo-ore,
+.meteo-giorni {
+  list-style: none;
+  margin: 4px -8px 0;
+  padding: 4px 0 0;
+  border-top: 1px solid var(--bordo);
+  display: grid;
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.meteo-ore { grid-template-columns: repeat(6, minmax(0, 1fr)); font-size: 0.9375rem; }
+.meteo-giorni { grid-template-columns: repeat(3, minmax(0, 1fr)); font-size: 1rem; }
+
+.meteo-ora,
+.meteo-giorno {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.meteo-ora-orario { color: var(--testo-tenue); }
+.meteo-ora .meteo-emoji { font-size: 1.125rem; line-height: 1.2; }
+.meteo-ora-temperatura { font-weight: 600; }
+.meteo-pioggia { font-size: 0.75rem; color: var(--salvia); font-weight: 600; }
+.meteo-pioggia-goccia { font-size: 0.875em; }
+
+.meteo-giorno-data { font-weight: 600; }
+.meteo-giorno .meteo-emoji { font-size: 1.375rem; line-height: 1.15; }
 
 .meteo-avviso {
   margin: 8px 0 0;
@@ -49,12 +68,28 @@
   background: var(--terracotta-chiara);
 }
 
-.meteo-azioni { margin-top: 12px; display: flex; justify-content: flex-end; }
-
-@media (max-width: 420px) {
-  .meteo-giorno { grid-template-columns: 5.5em 1.5em minmax(0, 1fr); }
-  .meteo-giorno-temperature { grid-column: 3; }
+/* Fondo: località e orario dell'ultimo aggiornamento, poi il pulsante Aggiorna, su una sola riga. */
+.meteo-fondo {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
+
+/* Una località dal nome lungo si accorcia con "…"; l'orario dell'aggiornamento resta sempre intero. */
+.meteo-fondo-testo {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  color: var(--testo-tenue);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.meteo-fondo-localita { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.meteo-fondo-orario { flex: none; }
+.meteo-fondo .pulsante { flex: none; padding: 8px 12px; font-size: 1rem; }
 
 /* Gruppo "Località del meteo" */
 

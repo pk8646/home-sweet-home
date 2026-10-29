@@ -1,0 +1,11 @@
+{
+  "name": "casa-nostra-test",
+  "private": true,
+  "description": "Suite di test di Casa Nostra: npm install qui, poi node test/run.js dalla radice del repository",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}
