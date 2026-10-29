@@ -72,7 +72,9 @@
    * consecutivo nel tempo reale: così anche nel giorno del cambio d'ora le caselle distano davvero 2 ore.
    */
   function oreDa(h, adesso) {
-    if (!h || !Array.isArray(h.time)) throw erroreRisposta();
+    // la probabilità di pioggia può mancare per una singola ora (null), non per tutta la risposta
+    if (!h || !Array.isArray(h.time) || !Array.isArray(h.precipitation_probability) ||
+      h.precipitation_probability.length !== h.time.length) throw erroreRisposta();
     var oraIntera = adesso.slice(0, 13) + ':00';
     var inizio = -1;
     for (var i = 0; i < h.time.length; i++) {
@@ -88,7 +90,7 @@
         ora: t.slice(11, 16),
         codice: numero(h.weather_code && h.weather_code[j]),
         temperatura: numero(h.temperature_2m && h.temperature_2m[j]),
-        pioggia: probabilita(h.precipitation_probability && h.precipitation_probability[j])
+        pioggia: probabilita(h.precipitation_probability[j])
       });
     }
     return ore;

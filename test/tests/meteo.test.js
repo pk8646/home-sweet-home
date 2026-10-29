@@ -215,6 +215,29 @@ test('una risposta senza dati orari è una risposta inattesa', async ({ apri }) 
   assert.equal(await scheda.getByRole('list').count(), 0);
 });
 
+for (const [caso, guasta] of [
+  ['senza probabilità di pioggia', function (r) { delete r.hourly.precipitation_probability; }],
+  ['con la probabilità di pioggia non in elenco', function (r) { r.hourly.precipitation_probability = 40; }],
+  ['con la probabilità di pioggia più corta delle ore', function (r) { r.hourly.precipitation_probability = r.hourly.precipitation_probability.slice(0, 12); }]
+]) {
+  test('una risposta ' + caso + ' è una risposta inattesa', async ({ apri }) => {
+    const risposta = rispostaMeteoFinta({ ora: '2026-10-28T10:00' });
+    guasta(risposta);
+    const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: risposta }] });
+    const scheda = schedaMeteo(app.page);
+    await attendi(async () => assert.match(await scheda.textContent(), /Il servizio meteo ha risposto in modo inatteso/));
+    assert.equal(await scheda.getByRole('list').count(), 0);
+  });
+}
+
+test('un\'ora senza probabilità di pioggia (null) non mostra alcun dato di pioggia', async ({ apri }) => {
+  const risposta = rispostaMeteoFinta({ ora: '2026-10-28T10:00', pioggia: { '2026-10-28T11:00': null, '2026-10-28T13:00': 40 } });
+  const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: risposta }] });
+  const scheda = schedaMeteo(app.page);
+  await attendi(async () => assert.equal(await oreDellaScheda(scheda).count(), 6));
+  assert.deepEqual((await testiVisibili(oreDellaScheda(scheda))).slice(0, 2), ['11:00 ☀️ 11°', '13:00 ☀️ 13° 💧 40%']);
+});
+
 test('una risposta con meno di 3 giorni da domani o con ore insufficienti è una risposta inattesa', async ({ apri }) => {
   const corta = rispostaPrevisioni({ ora: '2026-10-28T10:00', giorni: 3 });
   const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: corta }] });
