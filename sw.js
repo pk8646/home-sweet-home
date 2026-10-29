@@ -60,6 +60,8 @@ var RISORSE = [
   'js/sezioni/casa.js',
   'js/sezioni/meteo.js',
   'js/sezioni/foto.js',
+  'js/sezioni/archivio-foto.js',
+  'js/sezioni/backup.js',
   'js/sezioni/impostazioni.js',
   'js/avvio.js'
 ];

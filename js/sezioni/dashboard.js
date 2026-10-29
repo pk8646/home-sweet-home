@@ -8,12 +8,12 @@
   'use strict';
 
   var ui = CasaNostra.ui;
-  var disegnate = []; // [{ def, cornice, corpo }]
+  var disegnate = []; // [{ def, riquadro, corpo }]
 
   function disegnaScheda(voce) {
     var def = voce.def;
     var corpo = ui.svuota(voce.corpo);
-    voce.cornice.hidden = false;
+    voce.riquadro.hidden = false;
     var contesto = ui.creaContesto([], function () { return disegnaScheda(voce); });
     return Promise.resolve().then(function () {
       return def.disegna(corpo, contesto);
@@ -21,8 +21,8 @@
       // Una scheda che non ha niente da mostrare esce dalla griglia (non lascia una cella vuota);
       // se ridisegnandola torna visibile, rientra al suo posto.
       if (esito === false) {
-        voce.cornice.hidden = true;
-        if (voce.cornice.parentNode) voce.cornice.parentNode.removeChild(voce.cornice);
+        voce.riquadro.hidden = true;
+        if (voce.riquadro.parentNode) voce.riquadro.parentNode.removeChild(voce.riquadro);
       } else {
         rientra(voce);
       }
@@ -36,25 +36,25 @@
   /** Rimette nella griglia, nella sua posizione, una scheda che ne era uscita. */
   function rientra(voce) {
     var i = disegnate.indexOf(voce);
-    if (voce.cornice.parentNode || i < 0 || !voce.griglia) return;
+    if (voce.riquadro.parentNode || i < 0 || !voce.griglia) return;
     var dopo = null;
     for (var j = i + 1; j < disegnate.length && !dopo; j++) {
-      if (disegnate[j].cornice.parentNode === voce.griglia) dopo = disegnate[j].cornice;
+      if (disegnate[j].riquadro.parentNode === voce.griglia) dopo = disegnate[j].riquadro;
     }
-    voce.griglia.insertBefore(voce.cornice, dopo);
+    voce.griglia.insertBefore(voce.riquadro, dopo);
   }
 
-  function creaCornice(def) {
+  function creaRiquadro(def) {
     var idTitolo = 'scheda-titolo-' + def.id;
     var corpo = ui.el('div', { class: 'scheda-corpo' });
-    var cornice = ui.el('section', { class: 'scheda scheda-' + def.id, 'data-scheda': def.id, 'aria-labelledby': idTitolo }, [
+    var riquadro = ui.el('section', { class: 'scheda scheda-' + def.id, 'data-scheda': def.id, 'aria-labelledby': idTitolo }, [
       ui.el('h2', { class: 'scheda-titolo', id: idTitolo }, [
         ui.el('span', { class: 'scheda-icona', 'aria-hidden': 'true', testo: def.icona || '' }),
         ' ' + def.titolo
       ]),
       corpo
     ]);
-    return { def: def, cornice: cornice, corpo: corpo };
+    return { def: def, riquadro: riquadro, corpo: corpo };
   }
 
   function esci() {
@@ -78,17 +78,17 @@
         griglia.appendChild(ui.el('p', { class: 'vuoto', testo: 'Nessuna scheda da mostrare. Puoi riattivarle dalle Impostazioni.' }));
         return;
       }
-      disegnate = visibili.map(creaCornice);
-      disegnate.forEach(function (v) { v.griglia = griglia; griglia.appendChild(v.cornice); });
+      disegnate = visibili.map(creaRiquadro);
+      disegnate.forEach(function (v) { v.griglia = griglia; griglia.appendChild(v.riquadro); });
       return Promise.all(disegnate.map(disegnaScheda));
     });
   }
 
-  function alCambioGiorno() {
+  function ridisegnaSchedeDellaData() {
     return Promise.all(disegnate.filter(function (v) { return v.def.dipendeDallaData; }).map(disegnaScheda));
   }
 
-  ui.registraSezione({ id: 'home', titolo: 'Home', icona: '🏠', ordine: 0, disegna: disegna, esci: esci, alCambioGiorno: alCambioGiorno });
+  ui.registraSezione({ id: 'home', titolo: 'Home', icona: '🏠', ordine: 0, disegna: disegna, esci: esci, alCambioGiorno: ridisegnaSchedeDellaData });
 
-  CasaNostra.sezioni.dashboard = { ridisegnaSchede: alCambioGiorno };
+  CasaNostra.sezioni.dashboard = { ridisegnaSchedeDellaData: ridisegnaSchedeDellaData };
 })(window.CasaNostra);

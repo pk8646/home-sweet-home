@@ -4,6 +4,9 @@
  *
  *   CasaNostra.dialoghi.conferma({ titolo, messaggio, testoConferma: 'Elimina', pericolo: true,
  *                                  richiediTesto: 'CANCELLA' })            -> Promise<boolean>
+ *     (con richiediTesto la conferma si abilita solo con il testo esatto, senza tolleranza per gli spazi)
+ *   CasaNostra.dialoghi.confermaElimina({ titolo, messaggio }, elimina)    -> Promise
+ *     conferma "Elimina" in rosso; se l'utente accetta esegue elimina() e ne restituisce il risultato
  *   CasaNostra.dialoghi.modulo({ titolo, testoConferma: 'Salva', campi: [
  *       { nome: 'titolo', etichetta: 'Titolo', tipo: 'text', valore: '', obbligatorio: true },
  *       { nome: 'note', etichetta: 'Note', tipo: 'textarea' },
@@ -77,12 +80,12 @@
       var p = pulsanti(o.testoAnnulla || 'Annulla', o.testoConferma || 'Conferma', o.pericolo, function () { chiudi(false); });
       if (campo) {
         p.conferma.disabled = true;
-        campo.addEventListener('input', function () { p.conferma.disabled = campo.value.trim() !== o.richiediTesto; });
+        campo.addEventListener('input', function () { p.conferma.disabled = campo.value !== o.richiediTesto; });
       }
       modulo.appendChild(p.riga);
       modulo.addEventListener('submit', function (ev) {
         ev.preventDefault();
-        if (campo && campo.value.trim() !== o.richiediTesto) return;
+        if (campo && campo.value !== o.richiediTesto) return;
         chiudi(true);
       });
       dialogo.appendChild(modulo);
@@ -160,5 +163,12 @@
     });
   }
 
-  CasaNostra.dialoghi = { conferma: conferma, modulo: modulo };
+  /** Conferma di un'eliminazione: se l'utente accetta esegue `elimina()` (che può restituire una Promise). */
+  function confermaElimina(o, elimina) {
+    return conferma({ titolo: o.titolo, messaggio: o.messaggio, testoConferma: 'Elimina', pericolo: true }).then(function (ok) {
+      if (ok) return elimina();
+    });
+  }
+
+  CasaNostra.dialoghi = { conferma: conferma, confermaElimina: confermaElimina, modulo: modulo };
 })(window.CasaNostra);

@@ -82,11 +82,9 @@
 
     function elimina() {
       var m = corrente();
-      return CasaNostra.dialoghi.conferma({
-        titolo: 'Eliminare la foto?', messaggio: '«' + m.nome + '» verrà eliminata da questo dispositivo.',
-        testoConferma: 'Elimina', pericolo: true
-      }).then(function (ok) {
-        if (!ok) return;
+      return CasaNostra.dialoghi.confermaElimina({
+        titolo: 'Eliminare la foto?', messaggio: '«' + m.nome + '» verrà eliminata da questo dispositivo.'
+      }, function () {
         return foto.elimina(m.id).then(function () {
           elenco.splice(indice, 1);
           ui.toast('Foto eliminata.', { tipo: 'successo' });
@@ -134,6 +132,45 @@
 
   function chiudiVista() { if (vistaAperta) vistaAperta.chiudi(); }
 
+  // ---------- miniature della galleria: URL temporaneo solo mentre sono (quasi) sullo schermo ----------
+
+  var osservatore = null;
+  var MARGINE_OSSERVATORE = '300px 0px';
+
+  function fermaOsservatore() {
+    if (osservatore) osservatore.disconnect();
+    osservatore = null;
+  }
+
+  /**
+   * Restituisce mostra(img, blob). Con IntersectionObserver l'URL della miniatura si crea quando entra
+   * nello schermo e si revoca quando ne esce; senza, si crea subito (e si revoca uscendo dalla pagina).
+   */
+  function osservaMiniature() {
+    fermaOsservatore();
+    if (typeof window.IntersectionObserver !== 'function') {
+      return function (img, blob) { img.src = urlPagina.crea(blob); };
+    }
+    var blobDi = new Map();
+    osservatore = new IntersectionObserver(function (voci) {
+      voci.forEach(function (v) {
+        var img = v.target;
+        var attuale = img.getAttribute('src');
+        if (v.isIntersecting && !attuale) {
+          img.src = urlPagina.crea(blobDi.get(img));
+        } else if (!v.isIntersecting && attuale) {
+          img.removeAttribute('src');
+          urlPagina.revoca(attuale);
+        }
+      });
+    }, { rootMargin: MARGINE_OSSERVATORE });
+    var questo = osservatore;
+    return function (img, blob) {
+      blobDi.set(img, blob);
+      questo.observe(img);
+    };
+  }
+
   // ---------- pagina ----------
 
   function disegna(contenitore) {
@@ -159,6 +196,7 @@
     function disegnaGriglia() {
       return foto.elenco().then(function (elenco) {
         if (!area.isConnected) return;
+        fermaOsservatore();
         urlPagina.revocaTutti();
         ui.svuota(area);
         elencoCorrente = elenco;
@@ -170,9 +208,10 @@
           return;
         }
         var lista = ui.el('ul', { class: 'foto-griglia', 'aria-label': 'Foto' });
+        var mostraMiniatura = osservaMiniature();
         elenco.forEach(function (m, i) {
           var miniatura = ui.el('img', { alt: '', loading: 'lazy', width: '150', height: '150' });
-          if (m.miniatura) miniatura.src = urlPagina.crea(m.miniatura);
+          if (m.miniatura) mostraMiniatura(miniatura, m.miniatura);
           lista.appendChild(ui.el('li', { class: 'foto-voce' }, ui.el('button', {
             type: 'button', class: 'foto-miniatura', 'aria-label': 'Apri ' + m.nome,
             on: { click: CasaNostra.errori.protetta(function () { return apriVista(elenco.slice(), i, disegnaGriglia); }, 'apertura della foto') }
@@ -220,6 +259,7 @@
   }
 
   function esci() {
+    fermaOsservatore();
     chiudiVista();
     CasaNostra.presentazione.chiudi();
     urlVista.revocaTutti();

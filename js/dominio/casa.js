@@ -1,7 +1,7 @@
 /*
  * CasaNostra.dominio.casa — regole pure (senza DOM, senza persistenza) dei promemoria casa.
- * Un Promemoria casa è { id, titolo, categoria, data, note, intervallo, completato, ultimoCompletamento, creatoIl }:
- * data e ultimoCompletamento sono 'AAAA-MM-GG' o null, intervallo (di ricorrenza, in giorni) è un intero positivo o null.
+ * Un Promemoria casa è { id, titolo, categoria, data, note, intervalloGiorni, completato, ultimoCompletamento, creatoIl }:
+ * data e ultimoCompletamento sono 'AAAA-MM-GG' o null, intervalloGiorni (intervallo di ricorrenza) è un intero positivo o null.
  */
 (function (CasaNostra) {
   'use strict';
@@ -36,20 +36,20 @@
     if (!String(v.titolo || '').trim()) return 'Scrivi un titolo.';
     if (!categoriaValida(v.categoria)) return 'Scegli una categoria.';
     if (v.data && !date.valida(v.data)) return 'La data non è valida.';
-    if (isNaN(leggiIntervallo(v.intervallo))) return 'L\'intervallo deve essere un numero intero di giorni maggiore di zero.';
+    if (isNaN(leggiIntervallo(v.intervalloGiorni))) return 'L\'intervallo deve essere un numero intero di giorni maggiore di zero.';
     return null;
   }
 
   /** Promemoria (nuovo o aggiornato) dai valori del modulo. `base` è il promemoria che si modifica, se c'è. */
   function daValori(v, base, id, adessoIso) {
     var b = base || { id: id, completato: false, ultimoCompletamento: null, creatoIl: adessoIso };
-    var intervallo = leggiIntervallo(v.intervallo);
+    var intervallo = leggiIntervallo(v.intervalloGiorni);
     return Object.assign({}, b, {
       titolo: String(v.titolo).replace(/\s+/g, ' ').trim(),
       categoria: v.categoria,
       data: v.data || null,
       note: String(v.note || '').trim(),
-      intervallo: intervallo,
+      intervalloGiorni: intervallo,
       // Un promemoria diventato ricorrente non può restare "completato".
       completato: intervallo ? false : !!b.completato
     });
@@ -60,9 +60,9 @@
    * o da oggi se non c'è), si registra l'ultimo completamento e il promemoria resta aperto.
    */
   function completa(p, oggi) {
-    if (p.intervallo) {
+    if (p.intervalloGiorni) {
       return Object.assign({}, p, {
-        data: date.aggiungiGiorni(p.data || oggi, p.intervallo),
+        data: date.aggiungiGiorni(p.data || oggi, p.intervalloGiorni),
         ultimoCompletamento: oggi,
         completato: false
       });

@@ -14,7 +14,8 @@
 
 .foto-barra { display: flex; gap: 8px; margin-bottom: var(--spazio); }
 .foto-aggiungi { cursor: pointer; }
-.foto-barra input:focus-visible + .foto-aggiungi { outline: 3px solid var(--salvia); outline-offset: 2px; }
+.foto-barra input:focus + .foto-aggiungi { outline: 3px solid var(--salvia); outline-offset: 2px; }
+.foto-barra input:focus:not(:focus-visible) + .foto-aggiungi { outline: none; } /* ripiego :focus per Chromium < 86 */
 .foto-barra input:disabled + .foto-aggiungi { opacity: 0.6; cursor: progress; }
 
 .foto-esito:empty { display: none; }
@@ -44,6 +45,12 @@
 }
 
 .foto-miniatura img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Chromium < 88 non conosce aspect-ratio: il quadrato lo dà il padding in percentuale della larghezza. */
+@supports not (aspect-ratio: 1 / 1) {
+  .foto-miniatura { position: relative; height: 0; padding-bottom: 100%; }
+  .foto-miniatura img { position: absolute; top: 0; left: 0; }
+}
 
 /* Vista ingrandita */
 .foto-vista {

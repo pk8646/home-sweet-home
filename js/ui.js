@@ -68,6 +68,21 @@
     return nodo;
   }
 
+  /** Icona "⚠️ " decorativa (nascosta ai lettori di schermo) da mettere davanti a un messaggio d'avviso. */
+  function iconaAvviso() {
+    return el('span', { 'aria-hidden': 'true', testo: '⚠️ ' });
+  }
+
+  /** Fa scaricare un Blob con il nome dato (link `download` temporaneo; l'URL si revoca poco dopo). */
+  function scaricaBlob(blob, nome) {
+    var url = URL.createObjectURL(blob);
+    var link = el('a', { href: url, download: nome, rel: 'noopener', hidden: true });
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
   /** Link "Vedi tutti (N)" verso una sezione. */
   function linkVediTutti(idSezione, numero, testo) {
     return el('a', { class: 'vedi-tutti', href: '#/' + idSezione },
@@ -110,7 +125,7 @@
     if (esistente) esistente.parentNode.removeChild(esistente);
     if (!testo) return;
     area.appendChild(el('p', { id: 'avviso-' + id, class: 'avviso avviso-' + (tipo || 'errore'), role: 'alert' }, [
-      el('span', { 'aria-hidden': 'true', testo: '⚠️ ' }), testo
+      iconaAvviso(), testo
     ]));
   }
 
@@ -165,7 +180,7 @@
 
   function messaggioErrore(err, testoBase) {
     return el('p', { class: 'messaggio-errore', role: 'alert' }, [
-      el('span', { 'aria-hidden': 'true', testo: '⚠️ ' }),
+      iconaAvviso(),
       testoBase + ' ' + CasaNostra.errori.messaggio(err)
     ]);
   }
@@ -312,6 +327,8 @@
   CasaNostra.ui = {
     el: el,
     svuota: svuota,
+    iconaAvviso: iconaAvviso,
+    scaricaBlob: scaricaBlob,
     linkVediTutti: linkVediTutti,
     messaggioErrore: messaggioErrore,
     toast: toast,

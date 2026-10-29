@@ -68,11 +68,10 @@
       ui.el('button', {
         type: 'button', class: 'pulsante-icona pulsante-elimina', 'aria-label': 'Elimina ' + a.titolo,
         on: { click: CasaNostra.errori.protetta(function () {
-          return CasaNostra.dialoghi.conferma({
+          return CasaNostra.dialoghi.confermaElimina({
             titolo: 'Eliminare l\'appuntamento?',
-            messaggio: '«' + a.titolo + '» del ' + date.formattaLunga(a.data) + ' verrà eliminato.',
-            testoConferma: 'Elimina', pericolo: true
-          }).then(function (ok) { if (ok) return elimina(a.id).then(aggiorna); });
+            messaggio: '«' + a.titolo + '» del ' + date.formattaLunga(a.data) + ' verrà eliminato.'
+          }, function () { return elimina(a.id).then(aggiorna); });
         }, 'eliminazione di un appuntamento') }
       })
     ]);
@@ -88,11 +87,11 @@
         function voci(elenco) {
           return ui.el('ul', { class: 'lista-appuntamenti' }, elenco.map(function (a) { return voceAppuntamento(a, contesto.oggi, aggiorna); }));
         }
-        var idTitolo = 'agenda-prossimi-' + (++contatore);
+        var idTitolo = 'agenda-in-programma-' + (++contatore);
         ui.svuota(liste);
         liste.appendChild(ui.el('section', { class: 'agenda-elenco', 'aria-labelledby': idTitolo }, [
-          ui.el('h3', { class: 'agenda-elenco-titolo', id: idTitolo, testo: 'Prossimi (' + s.prossimi.length + ')' }),
-          s.prossimi.length ? voci(s.prossimi) : ui.el('p', { class: 'vuoto', testo: 'Nessun appuntamento in programma.' })
+          ui.el('h3', { class: 'agenda-elenco-titolo', id: idTitolo, testo: 'In programma (' + s.inProgramma.length + ')' }),
+          s.inProgramma.length ? voci(s.inProgramma) : ui.el('p', { class: 'vuoto', testo: 'Nessun appuntamento in programma.' })
         ]));
         // I passati non si cancellano mai da soli: restano qui, chiusi per default.
         liste.appendChild(ui.el('details', { class: 'agenda-elenco agenda-passati' }, [
@@ -116,15 +115,15 @@
 
   function disegnaScheda(corpo, contesto) {
     return raccolta().list().then(function (tutti) {
-      var prossimi = dominio.suddividi(tutti, contesto.oggi).prossimi;
-      if (!prossimi.length) {
+      var inProgramma = dominio.suddividi(tutti, contesto.oggi).inProgramma;
+      if (!inProgramma.length) {
         corpo.appendChild(ui.el('p', { class: 'vuoto', testo: 'Nessun appuntamento in programma.' }));
       } else {
-        corpo.appendChild(ui.el('ul', { class: 'lista-appuntamenti' }, prossimi.slice(0, MAX_SCHEDA).map(function (a) {
+        corpo.appendChild(ui.el('ul', { class: 'lista-appuntamenti' }, inProgramma.slice(0, MAX_SCHEDA).map(function (a) {
           return voceAppuntamento(a, contesto.oggi);
         })));
       }
-      corpo.appendChild(ui.linkVediTutti('agenda', prossimi.length));
+      corpo.appendChild(ui.linkVediTutti('agenda', inProgramma.length));
     });
   }
 

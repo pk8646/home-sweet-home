@@ -12,7 +12,7 @@
  *   importa(file)       -> Promise<{ importate, giaPresenti, nonLeggibili }>
  *                          rifiuta (perUtente) gli ZIP non STORE, i file non ZIP e gli archivi di altre app;
  *                          aggiunge solo gli id sconosciuti, non elimina mai foto esistenti.
- * Gruppo impostazioni 'archivio' (ordine 70).
+ * Solo logica: il gruppo impostazioni "Archivio foto" (ordine 70) sta in js/sezioni/archivio-foto.js.
  */
 (function (CasaNostra) {
   'use strict';
@@ -159,23 +159,10 @@
     });
   }
 
-  function scaricaBlob(blob, nome) {
-    var u = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = u;
-    a.download = nome;
-    a.rel = 'noopener';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(u); }, 1000);
-  }
-
   function esporta() {
     return creaArchivio().then(function (r) {
       var nome = 'casa-nostra-foto-' + CasaNostra.date.oggi() + '.zip';
-      scaricaBlob(r.blob, nome);
+      CasaNostra.ui.scaricaBlob(r.blob, nome);
       return { quante: r.quante, nome: nome };
     });
   }
@@ -288,58 +275,6 @@
       });
     });
   }
-
-  function testoEsito(e) {
-    return 'Importate ' + e.importate + ', già presenti ' + e.giaPresenti + ', non leggibili ' + e.nonLeggibili + '.';
-  }
-
-  // ---------- gruppo delle impostazioni ----------
-
-  function disegnaGruppo(corpo) {
-    var ui = CasaNostra.ui;
-    var esito = ui.el('div', { class: 'archivio-esito' });
-    function mostraErrore(err, base) {
-      CasaNostra.errori.registra(err, base);
-      ui.svuota(esito).appendChild(ui.messaggioErrore(err, ''));
-    }
-    var pulsanteEsporta = ui.el('button', { type: 'button', class: 'pulsante pulsante-primario', testo: 'Esporta archivio foto' });
-    pulsanteEsporta.addEventListener('click', function () {
-      pulsanteEsporta.disabled = true;
-      ui.svuota(esito);
-      esporta().then(function (r) {
-        ui.toast(r.quante === 1 ? 'Archivio con 1 foto scaricato.' : 'Archivio con ' + r.quante + ' foto scaricato.', { tipo: 'successo' });
-      }, function (err) { mostraErrore(err, 'esportazione dell\'archivio foto'); })
-        .then(function () { pulsanteEsporta.disabled = false; });
-    });
-    corpo.appendChild(ui.el('p', { class: 'aiuto', testo: 'L\'archivio foto è un file ZIP con tutte le foto, separato dal backup dati. Conservalo fuori dal tablet.' }));
-    var campo = ui.el('input', {
-      id: 'archivio-importa', class: 'archivio-campo', type: 'file', accept: '.zip,application/zip'
-    });
-    campo.addEventListener('change', function () {
-      var file = campo.files && campo.files[0];
-      if (!file) return;
-      campo.disabled = true;
-      ui.svuota(esito).appendChild(ui.el('p', { class: 'aiuto', testo: 'Importazione in corso…' }));
-      importa(file).then(function (r) {
-        ui.svuota(esito).appendChild(ui.el('p', { class: 'archivio-resoconto', role: 'status', testo: testoEsito(r) }));
-      }, function (err) {
-        if (err && err.esitoParziale) {
-          err = CasaNostra.errori.perUtente(CasaNostra.errori.messaggio(err) + ' Prima dell\'interruzione: ' + testoEsito(err.esitoParziale));
-        }
-        mostraErrore(err, 'importazione dell\'archivio foto');
-      }).then(function () {
-        campo.value = '';
-        campo.disabled = false;
-      });
-    });
-    corpo.appendChild(ui.el('div', { class: 'impostazioni-riga' }, [pulsanteEsporta]));
-    corpo.appendChild(ui.el('label', { class: 'etichetta', for: 'archivio-importa', testo: 'Importa archivio foto' }));
-    corpo.appendChild(campo);
-    corpo.appendChild(ui.el('p', { class: 'aiuto', testo: 'L\'importazione aggiunge le foto mancanti e salta quelle già presenti: non elimina mai foto.' }));
-    corpo.appendChild(esito);
-  }
-
-  CasaNostra.ui.registraGruppoImpostazioni({ id: 'archivio', titolo: 'Archivio foto', ordine: 70, disegna: disegnaGruppo });
 
   CasaNostra.archivioFoto = {
     INDICE: INDICE,

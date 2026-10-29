@@ -52,10 +52,13 @@ a { color: var(--terracotta-scura); }
 
 button, input, select, textarea { font: inherit; color: inherit; }
 
-:focus-visible {
+/* Contorno del fuoco solo da tastiera. Chromium < 86 non conosce :focus-visible: lì vale :focus, e la
+   seconda regola (selettore sconosciuto, quindi ignorata) non lo toglie. */
+:focus {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
+:focus:not(:focus-visible) { outline: none; }
 
 .noscript { padding: var(--spazio); }
 

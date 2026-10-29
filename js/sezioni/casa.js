@@ -43,8 +43,8 @@
         { nome: 'categoria', etichetta: 'Categoria', tipo: 'select', obbligatorio: true,
           valore: p.categoria || 'manutenzione', opzioni: dominio.CATEGORIE },
         { nome: 'data', etichetta: 'Data', tipo: 'date', valore: p.data || '' },
-        { nome: 'intervallo', etichetta: 'Ripeti ogni (giorni)', tipo: 'number', min: 1, step: 1,
-          valore: p.intervallo || '', aiuto: 'Lascia vuoto se non si ripete.' },
+        { nome: 'intervalloGiorni', etichetta: 'Ripeti ogni (giorni)', tipo: 'number', min: 1, step: 1,
+          valore: p.intervalloGiorni || '', aiuto: 'Lascia vuoto se non si ripete.' },
         { nome: 'note', etichetta: 'Note', tipo: 'textarea', valore: p.note || '' }
       ],
       valida: dominio.validaValori
@@ -71,11 +71,10 @@
       ui.el('button', {
         type: 'button', class: 'pulsante-icona pulsante-elimina', 'aria-label': 'Elimina ' + p.titolo,
         on: { click: CasaNostra.errori.protetta(function () {
-          return CasaNostra.dialoghi.conferma({
+          return CasaNostra.dialoghi.confermaElimina({
             titolo: 'Eliminare il promemoria?',
-            messaggio: '«' + p.titolo + '» verrà eliminato.',
-            testoConferma: 'Elimina', pericolo: true
-          }).then(function (ok) { if (ok) return elimina(p.id).then(aggiorna); });
+            messaggio: '«' + p.titolo + '» verrà eliminato.'
+          }, function () { return elimina(p.id).then(aggiorna); });
         }, 'eliminazione del promemoria') }
       })
     ]);
@@ -88,7 +87,7 @@
     var dettagli = [ui.el('span', { class: 'promemoria-categoria', testo: dominio.nomeCategoria(p.categoria) })];
     if (scaduto) dettagli.push(ui.el('span', { class: 'promemoria-etichetta-scaduto', testo: 'Scaduto' }));
     if (p.data) dettagli.push(ui.el('span', { class: 'promemoria-data', testo: date.formattaBreve(p.data) }));
-    if (p.intervallo) dettagli.push(ui.el('span', { class: 'promemoria-ricorrenza', testo: 'Ogni ' + p.intervallo + ' giorni' }));
+    if (p.intervalloGiorni) dettagli.push(ui.el('span', { class: 'promemoria-ricorrenza', testo: 'Ogni ' + p.intervalloGiorni + ' giorni' }));
     if (p.completato) {
       dettagli.push(ui.el('span', { class: 'promemoria-stato', testo: 'Completato' +
         (p.ultimoCompletamento ? ' ' + giornoRelativo(p.ultimoCompletamento, oggi) : '') }));

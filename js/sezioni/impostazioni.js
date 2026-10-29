@@ -8,7 +8,6 @@
  * privacy 80, ripristino iniziale 90.
  *
  * Scheda "Benvenuti" (ordine 1, non nascondibile): compare finché impostazioni.benvenutoVisto è false.
- * Per i test che non la vogliono: apri({ scriptIniziale: () => { window.CasaNostraSenzaBenvenuto = true; } }).
  */
 (function (CasaNostra) {
   'use strict';
@@ -33,7 +32,6 @@
   ui.registraScheda({
     id: 'benvenuto', titolo: 'Benvenuti', icona: '👋', ordine: 1, nascondibile: false,
     disegna: function (corpo) {
-      if (window.CasaNostraSenzaBenvenuto === true) return false;
       return CasaNostra.impostazioni.leggi().then(function (imp) {
         if (imp.benvenutoVisto) return false;
         corpo.appendChild(testoPrivacy());

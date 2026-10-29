@@ -201,3 +201,32 @@ textarea.campo { resize: vertical; }
   gap: 12px;
   margin-top: 16px;
 }
+
+/*
+ * Ripiego per Chromium 80–83, che non conosce `gap` nei contenitori flex (arriva in Chrome 84, insieme alla
+ * parola chiave `revert`: la query qui sotto vale solo per quei browser). Dove senza spazio pulsanti, caselle
+ * e testi si toccherebbero, lo spazio lo danno i margini dei figli. Le griglie hanno `gap` da Chrome 66.
+ */
+@supports not (color: revert) {
+  /* righe che possono andare a capo: margine a destra e sotto */
+  .dialogo-pulsanti > *, .spesa-azioni > *, .promemoria-azioni > *, .benvenuto-azioni > *,
+  .avviso-backup-azioni > *, .foto-vista-comandi > *, .attivita-filtri > *, .impostazioni-riga > *,
+  .localita-ricerca > *, .casa-barra > *, .intestazione > *, .orologio > *,
+  .voce-promemoria > *, .promemoria-dettagli > *, .meteo-attuale > *, .meteo-dettagli > * {
+    margin-right: 10px;
+    margin-bottom: 4px;
+  }
+  /* righe su una sola linea: margine a sinistra dal secondo figlio */
+  .riga-aggiunta > * + *, .foto-barra > * + *, .appuntamento-azioni > * + *, .voce-appuntamento > * + *,
+  .voce-prodotto > * + *, .prodotto > * + *, .voce-attivita > * + *, .attivita > * + *,
+  .impostazioni-interruttore > * + *, .dialogo-riga-casella > * + *, .toast > * + *, .foto-vista-testa > * + *,
+  .pulsante > * + * {
+    margin-left: 10px;
+  }
+  /* colonne */
+  .toast-area > * + *, .localita-elenco > * + *, .casa-filtro > * + *, .localita-campo > * + * { margin-top: 6px; }
+  .appuntamento-testo > * + * { margin-top: 2px; }
+  @media (orientation: landscape) and (min-width: 700px) {
+    .navigazione-lista > * + * { margin-top: 4px; }
+  }
+}

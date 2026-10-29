@@ -1,20 +1,15 @@
 /*
- * CasaNostra.sezioni.meteo — scheda Meteo della dashboard e gruppo "Località del meteo" nelle impostazioni.
- * Non ha una pagina propria. La logica (richieste, copia, limiti) sta in js/meteo.js.
+ * Sezione Meteo — scheda Meteo della dashboard e gruppo "Località del meteo" nelle impostazioni.
+ * Non ha una pagina propria e non espone nulla in CasaNostra.sezioni. La logica (richieste, copia, limiti)
+ * sta in js/meteo.js.
  */
 (function (CasaNostra) {
   'use strict';
 
   var ui = CasaNostra.ui;
   var meteo = CasaNostra.meteo;
-  var GIORNI_BREVI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
 
   function gradi(x) { return Math.round(x) + '°'; }
-
-  function giornoBreve(iso) {
-    var p = iso.split('-').map(Number);
-    return GIORNI_BREVI[new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay()] + ' ' + CasaNostra.date.formattaGiornoMese(iso);
-  }
 
   function disegnaDati(contenitore, localita, dati) {
     var a = dati.attuale;
@@ -33,7 +28,7 @@
     contenitore.appendChild(ui.el('ul', { class: 'meteo-giorni', 'aria-label': 'Previsioni dei prossimi giorni' }, dati.giorni.map(function (g) {
       var c = meteo.condizione(g.codice);
       return ui.el('li', { class: 'meteo-giorno' }, [
-        ui.el('span', { class: 'meteo-giorno-data', testo: giornoBreve(g.data) }),
+        ui.el('span', { class: 'meteo-giorno-data', testo: CasaNostra.date.formattaGiornoBreve(g.data) }),
         ui.el('span', { class: 'meteo-emoji', 'aria-hidden': 'true', testo: c.emoji }),
         ui.el('span', { class: 'meteo-giorno-condizione', testo: c.testo }),
         ui.el('span', { class: 'meteo-giorno-temperature' }, [
@@ -45,18 +40,19 @@
     })));
   }
 
-  function due(n) { return (n < 10 ? '0' : '') + n; }
-
   /** 'Aggiornato alle HH:MM del GG/MM' (ora locale del dispositivo). */
   function testoAggiornato(ms) {
     var d = new Date(ms);
-    return 'Aggiornato alle ' + due(d.getHours()) + ':' + due(d.getMinutes()) + ' del ' + due(d.getDate()) + '/' + due(d.getMonth() + 1);
+    return 'Aggiornato alle ' + CasaNostra.date.ora(d) + ' del ' + CasaNostra.date.formattaGiornoMese(CasaNostra.date.oggi(d));
   }
 
   // ---------- scheda della dashboard ----------
+  //
+  // Nessun polling: un solo timer, puntato sul prossimo aggiornamento automatico (copia di 30 minuti),
+  // attivo solo con la pagina visibile. Quando la pagina torna visibile si controlla subito.
 
-  var CONTROLLO_MS = 60 * 1000;
-  var attiva = null; // { area, localita, copia, errore, inCorso, timer }
+  var MINIMO_TIMER_MS = 1000;
+  var attiva = null; // { area, localita, copia, errore, inCorso, timer, sblocco }
 
   function aggiornaPulsante(s) {
     clearTimeout(s.sblocco);
@@ -74,7 +70,7 @@
       area.appendChild(ui.el('p', { class: 'meteo-aggiornato', testo: testoAggiornato(s.copia.salvataIl) }));
       if (s.errore) {
         area.appendChild(ui.el('p', { class: 'meteo-avviso', role: 'status' }, [
-          ui.el('span', { 'aria-hidden': 'true', testo: '⚠️ ' }),
+          ui.iconaAvviso(),
           'Non è stato possibile aggiornare il meteo. ' + CasaNostra.errori.messaggio(s.errore)
         ]));
       }
@@ -95,7 +91,9 @@
       s.errore = err;
     }).then(function () {
       s.inCorso = null;
-      if (attiva === s) disegnaStato(s);
+      if (attiva !== s) return;
+      disegnaStato(s);
+      pianifica(s);
     });
     s.inCorso = promessa;
     aggiornaPulsante(s);
@@ -122,11 +120,28 @@
     }
   }
 
-  function alCambioVisibilita() { if (attiva) controlla(attiva, false); }
+  /** Punta il timer sul prossimo aggiornamento automatico; nessun timer a pagina nascosta o con una richiesta in corso. */
+  function pianifica(s) {
+    clearTimeout(s.timer);
+    s.timer = null;
+    if (attiva !== s || s.inCorso || !paginaVisibile()) return;
+    var attesa = Math.max(MINIMO_TIMER_MS, meteo.attesaAutomatica(s.localita));
+    s.timer = setTimeout(function () {
+      s.timer = null;
+      controlla(s, false);
+      pianifica(s);
+    }, attesa);
+  }
+
+  function alCambioVisibilita() {
+    if (!attiva) return;
+    controlla(attiva, false);
+    pianifica(attiva);
+  }
 
   function esciScheda() {
     if (!attiva) return;
-    clearInterval(attiva.timer);
+    clearTimeout(attiva.timer);
     clearTimeout(attiva.sblocco);
     attiva = null;
     document.removeEventListener('visibilitychange', alCambioVisibilita);
@@ -143,9 +158,9 @@
       pulsante.addEventListener('click', CasaNostra.errori.protetta(function () { return aggiornaAMano(s); }, 'aggiornamento del meteo'));
       attiva = s;
       disegnaStato(s);
-      s.timer = setInterval(function () { controlla(s, false); }, CONTROLLO_MS);
       document.addEventListener('visibilitychange', alCambioVisibilita);
       controlla(s, true);
+      pianifica(s);
     });
   }
 
@@ -250,6 +265,4 @@
   }
 
   ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località del meteo', ordine: 20, disegna: disegnaLocalita });
-
-  CasaNostra.sezioni.meteo = {};
 })(window.CasaNostra);

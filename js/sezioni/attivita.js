@@ -52,11 +52,10 @@
   function elimina(id) { return raccolta().delete(id); }
 
   function chiediElimina(a, aggiorna) {
-    return CasaNostra.dialoghi.conferma({
+    return CasaNostra.dialoghi.confermaElimina({
       titolo: 'Eliminare l\'attività?',
-      messaggio: '«' + a.titolo + '» verrà eliminata.',
-      testoConferma: 'Elimina', pericolo: true
-    }).then(function (ok) { if (ok) return elimina(a.id).then(aggiorna); });
+      messaggio: '«' + a.titolo + '» verrà eliminata.'
+    }, function () { return elimina(a.id).then(aggiorna); });
   }
 
   function alterna(id) {

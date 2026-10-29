@@ -22,7 +22,8 @@
 
   function messaggio(err) {
     if (err && err.perUtente && err.message) return err.message;
-    if (err && err.name === 'QuotaExceededError') return CasaNostra.db.MESSAGGI.quota;
+    // Le eccezioni del browser sullo spazio esaurito hanno il messaggio della persistenza ("Spazio esaurito…").
+    if (err && err.name === 'QuotaExceededError') return CasaNostra.db.traduciErrore(err).message;
     return GENERICO;
   }
 

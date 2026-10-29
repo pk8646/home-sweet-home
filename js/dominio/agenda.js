@@ -19,13 +19,13 @@
   }
 
   /**
-   * Divide gli appuntamenti rispetto a `oggi` ('AAAA-MM-GG'): quelli di oggi restano tra i prossimi fino a
-   * mezzanotte anche dopo l'orario. Prossimi in ordine cronologico, passati dal più recente. Niente viene scartato.
+   * Divide gli appuntamenti rispetto a `oggi` ('AAAA-MM-GG'): quelli di oggi restano «in programma» fino a
+   * mezzanotte anche dopo l'orario. In programma in ordine cronologico, passati dal più recente. Niente viene scartato.
    */
   function suddividi(appuntamenti, oggi) {
     var ordinati = ordina(appuntamenti);
     return {
-      prossimi: ordinati.filter(function (a) { return a.data >= oggi; }),
+      inProgramma: ordinati.filter(function (a) { return a.data >= oggi; }),
       passati: ordinati.filter(function (a) { return a.data < oggi; }).reverse()
     };
   }

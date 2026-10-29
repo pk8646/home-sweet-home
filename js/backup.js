@@ -1,26 +1,31 @@
 /*
  * CasaNostra.backup — Backup dati (ticket #11): esportazione, validazione e importazione del file JSON,
- * promemoria di backup sulla dashboard e ripristino iniziale. L'archivio foto (ZIP) sta in un file suo (#10).
+ * regola del promemoria di backup e ripristino iniziale. Solo logica: l'interfaccia (gruppi "Backup dati" e
+ * "Ripristino iniziale", scheda "Promemoria backup") sta in js/sezioni/backup.js. L'archivio foto (ZIP) sta in
+ * js/archivio-foto.js (#10).
  *
  * Contratto del file: { app: 'casa-nostra', schemaVersion: 1, esportatoIl: ISO,
  *   dati: { prodotti, appuntamenti, attivita, promemoriaCasa, impostazioni } } — le foto sono escluse.
  *
  *   CasaNostra.backup.costruisci()        -> Promise<backup>  (oggetto pronto da serializzare)
  *   CasaNostra.backup.esporta()           -> Promise<backup>  (scarica il file e aggiorna ultimoBackup)
+ *   CasaNostra.backup.leggiFile(file)     -> Promise<testo del file scelto>
  *   CasaNostra.backup.leggi(testo)        -> backup validato e migrato; lancia un errore perUtente al primo problema
  *   CasaNostra.backup.riepilogo(backup)   -> { esportatoIl, conteggi: { raccolta: n } }
  *   CasaNostra.backup.importa(backup)     -> Promise (una sola transazione su tutte le raccolte strutturate; foto intatte)
- *   CasaNostra.backup.ripristinoIniziale() -> Promise (cancella dati, impostazioni, foto e la copia del meteo)
+ *   CasaNostra.backup.ripristinoIniziale() -> Promise (cancella dati, impostazioni, foto e LocalStorage dell'app)
+ *   CasaNostra.backup.giorniDallUltimo(ultimoBackup, adesso) -> giorni | null (mai fatto)
+ *   CasaNostra.backup.promemoriaDovuto(impostazioni, adesso) -> Promise<null | { giorni: n | null }>
+ *   CasaNostra.backup.posticipaPromemoria(adesso)            -> Promise (nasconde il promemoria per GIORNI_POSTICIPO giorni)
  */
 (function (CasaNostra) {
   'use strict';
 
-  var ui = CasaNostra.ui;
   var date = CasaNostra.date;
 
   var APP = 'casa-nostra';
   var SCHEMA = 1;
-  var RACCOLTE = ['prodotti', 'appuntamenti', 'attivita', 'promemoriaCasa', 'impostazioni'];
+  var RACCOLTE = CasaNostra.db.STRUTTURATE;
   var NOMI = {
     prodotti: 'Prodotti', appuntamenti: 'Appuntamenti', attivita: 'Attività',
     promemoriaCasa: 'Promemoria casa', impostazioni: 'Impostazioni'
@@ -49,20 +54,11 @@
     });
   }
 
-  function scaricaTesto(testo, nome) {
-    var blob = new Blob([testo], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var link = ui.el('a', { href: url, download: nome, hidden: true });
-    document.body.appendChild(link);
-    link.click();
-    link.parentNode.removeChild(link);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
-  }
-
   function esporta() {
     var adesso = new Date();
     return costruisci(adesso).then(function (backup) {
-      scaricaTesto(JSON.stringify(backup, null, 2), 'casa-nostra-backup-' + date.oggi(adesso) + '.json');
+      var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      CasaNostra.ui.scaricaBlob(blob, 'casa-nostra-backup-' + date.oggi(adesso) + '.json');
       return CasaNostra.impostazioni.aggiorna({ ultimoBackup: backup.esportatoIl }).then(function () { return backup; });
     });
   }
@@ -79,7 +75,7 @@
     appuntamenti: { titolo: 'testo', data: 'data', ora: 'ora?', note: 'testo?', creatoIl: 'istante?' },
     attivita: { titolo: 'testo', nota: 'testo?', completata: 'booleano', creataIl: 'istante?', completataIl: 'istante?' },
     promemoriaCasa: {
-      titolo: 'testo', categoria: 'categoria', data: 'data?', note: 'testo?', intervallo: 'intero?',
+      titolo: 'testo', categoria: 'categoria', data: 'data?', note: 'testo?', intervalloGiorni: 'intero?',
       completato: 'booleano', ultimoCompletamento: 'data?', creatoIl: 'istante?'
     },
     impostazioni: {
@@ -88,7 +84,7 @@
     }
   };
 
-  var CATEGORIE = ['manutenzione', 'scadenza', 'controllo', 'altro'];
+  var CATEGORIE = CasaNostra.dominio.casa.CATEGORIE.map(function (c) { return c.valore; });
 
   var DESCRIZIONI = {
     testo: 'deve essere un testo non vuoto',
@@ -203,29 +199,23 @@
     return b;
   }
 
-  // ---------- riepilogo e importazione ----------
+  /** Testo del file scelto dall'utente (con ripiego su FileReader). */
+  function leggiFile(file) {
+    if (typeof file.text === 'function') return file.text();
+    return new Promise(function (risolvi, rifiuta) {
+      var r = new FileReader();
+      r.onload = function () { risolvi(String(r.result)); };
+      r.onerror = function () { rifiuta(CasaNostra.errori.perUtente('Non è stato possibile leggere il file.')); };
+      r.readAsText(file);
+    });
+  }
 
-  var ETICHETTE = {
-    prodotti: ['prodotto', 'prodotti'], appuntamenti: ['appuntamento', 'appuntamenti'], attivita: ['attività', 'attività'],
-    promemoriaCasa: ['promemoria casa', 'promemoria casa']
-  };
+  // ---------- riepilogo e importazione ----------
 
   function riepilogo(backup) {
     var conteggi = {};
     RACCOLTE.forEach(function (n) { conteggi[n] = backup.dati[n].length; });
     return { esportatoIl: backup.esportatoIl, conteggi: conteggi };
-  }
-
-  function testoRiepilogo(backup) {
-    var r = riepilogo(backup);
-    var t = new Date(r.esportatoIl);
-    var parti = Object.keys(ETICHETTE).map(function (n) {
-      var c = r.conteggi[n];
-      return c + ' ' + ETICHETTE[n][c === 1 ? 0 : 1];
-    });
-    return 'Backup del ' + date.formattaBreve(date.oggi(t)) + ' alle ' + date.ora(t) + ': ' + parti.join(', ') +
-      (r.conteggi.impostazioni ? ' e le impostazioni' : '') + '. ' +
-      'Tutti i dati attuali (spesa, agenda, attività, promemoria casa e impostazioni) verranno sostituiti. Le foto non vengono toccate.';
   }
 
   /** Sostituisce tutte le raccolte strutturate in un'unica transazione. La raccolta foto non è inclusa. */
@@ -246,7 +236,7 @@
         var chiavi = [];
         for (var i = 0; i < window.localStorage.length; i++) {
           var k = window.localStorage.key(i);
-          if (k && k.indexOf('casaNostra.') === 0) chiavi.push(k);
+          if (k && k.indexOf(CasaNostra.PREFISSO_LOCALSTORAGE) === 0) chiavi.push(k);
         }
         chiavi.forEach(function (k) { window.localStorage.removeItem(k); });
       } catch (e) {
@@ -255,7 +245,7 @@
     });
   }
 
-  // ---------- ultimo backup ----------
+  // ---------- ultimo backup e promemoria di backup ----------
 
   /** Giorni trascorsi dall'ultimo backup (ISO) a oggi, o null se non c'è mai stato. */
   function giorniDallUltimo(ultimoBackup, adesso) {
@@ -265,177 +255,46 @@
     return Math.max(0, date.differenzaGiorni(date.oggi(t), date.oggi(adesso || new Date())));
   }
 
-  function testoUltimo(ultimoBackup, adesso) {
-    var n = giorniDallUltimo(ultimoBackup, adesso);
-    if (n === null) return 'mai';
-    if (n === 0) return 'oggi';
-    if (n === 1) return 'ieri';
-    return n + ' giorni fa';
-  }
-
-  // ---------- interfaccia: gruppo "Backup dati" ----------
-
-  ui.registraGruppoImpostazioni({
-    id: 'backup', titolo: 'Backup dati', ordine: 60,
-    disegna: function (corpo, contesto) {
-      return CasaNostra.impostazioni.leggi().then(function (imp) {
-        var ultimo = ui.el('p', { class: 'backup-ultimo', testo: 'Ultimo backup: ' + testoUltimo(imp.ultimoBackup, contesto && contesto.adesso) });
-        corpo.appendChild(ultimo);
-        corpo.appendChild(ui.el('p', { class: 'aiuto', testo: 'Il backup dati è un file JSON con spesa, agenda, attività, ' +
-          'promemoria casa e impostazioni. Non contiene le foto: per salvarle usa l\'archivio foto.' }));
-        corpo.appendChild(ui.el('button', {
-          type: 'button', class: 'pulsante pulsante-primario', testo: 'Esporta il backup dati',
-          on: { click: CasaNostra.errori.protetta(function () {
-            return esporta().then(function (backup) {
-              ultimo.textContent = 'Ultimo backup: ' + testoUltimo(backup.esportatoIl);
-              ui.toast('Backup dati esportato.', { tipo: 'successo' });
-            });
-          }, 'esportazione del backup dati') }
-        }));
-        corpo.appendChild(campoImportazione());
-        corpo.appendChild(ui.el('p', { class: 'aiuto', testo: 'Conserva i backup anche fuori dal tablet: copiali sul PC con il cavo USB, ' +
-          'inviali per email a te stesso o salvali nel tuo cloud personale.' }));
-      });
-    }
-  });
-
-  function campoImportazione() {
-    var id = 'backup-importa';
-    var campo = ui.el('input', { id: id, type: 'file', accept: '.json,application/json', class: 'backup-file' });
-    var errore = ui.el('p', { class: 'backup-errore', role: 'alert', hidden: true });
-    function mostraErrore(testo) {
-      errore.textContent = testo || '';
-      errore.hidden = !testo;
-    }
-    campo.addEventListener('change', CasaNostra.errori.protetta(function () {
-      var file = campo.files && campo.files[0];
-      campo.value = '';
-      mostraErrore(null);
-      if (!file) return;
-      return leggiFile(file).then(function (testo) {
-        var backup;
-        try {
-          backup = leggi(testo);
-        } catch (err) {
-          CasaNostra.errori.registra(err, 'validazione del backup dati');
-          mostraErrore(CasaNostra.errori.messaggio(err));
-          return;
-        }
-        return CasaNostra.dialoghi.conferma({
-          titolo: 'Importare il backup dati?', messaggio: testoRiepilogo(backup), testoConferma: 'Importa'
-        }).then(function (ok) {
-          if (!ok) return;
-          return importa(backup).then(function () {
-            return CasaNostra.impostazioni.leggi();
-          }).then(function (imp) {
-            ui.impostaNomeCasa(imp.nomeVisualizzato);
-            ui.toast('Backup dati importato.', { tipo: 'successo' });
-            return ui.ridisegna();
-          });
-        });
-      });
-    }, 'importazione del backup dati'));
-    return ui.el('div', { class: 'backup-importazione' }, [
-      ui.el('label', { class: 'etichetta', for: id, testo: 'Importa un backup dati' }),
-      campo,
-      ui.el('p', { class: 'aiuto', testo: 'Prima di sostituire i dati attuali vedrai un riepilogo e ti verrà chiesta conferma.' }),
-      errore
-    ]);
-  }
-
-  function leggiFile(file) {
-    if (typeof file.text === 'function') return file.text();
-    return new Promise(function (risolvi, rifiuta) {
-      var r = new FileReader();
-      r.onload = function () { risolvi(String(r.result)); };
-      r.onerror = function () { rifiuta(CasaNostra.errori.perUtente('Non è stato possibile leggere il file.')); };
-      r.readAsText(file);
-    });
-  }
-
-  // ---------- interfaccia: promemoria di backup sulla dashboard ----------
-
+  /** true se c'è almeno un dato dell'utente (le impostazioni non contano). */
   function ciSonoDati() {
-    return Promise.all(['prodotti', 'appuntamenti', 'attivita', 'promemoriaCasa'].map(function (n) {
+    return Promise.all(RACCOLTE.filter(function (n) { return n !== 'impostazioni'; }).map(function (n) {
       return CasaNostra.db.raccolta(n).list();
     })).then(function (liste) {
       return liste.some(function (l) { return l.length > 0; });
     });
   }
 
-  /** Testo dell'avviso, o null se non serve: ci sono dati e l'ultimo backup ha più di 30 giorni (o non c'è). */
-  function testoAvviso(imp, adesso) {
+  /**
+   * Il promemoria di backup serve se ci sono dati, non è posticipato e l'ultimo backup ha più di 30 giorni
+   * (o non c'è mai stato). Risolve con null se non serve, altrimenti con { giorni } (null = mai fatto).
+   */
+  function promemoriaDovuto(imp, adesso) {
     var oggi = date.oggi(adesso);
-    if (imp.avvisoBackupPosticipatoFino && oggi < imp.avvisoBackupPosticipatoFino) return null;
+    if (imp.avvisoBackupPosticipatoFino && oggi < imp.avvisoBackupPosticipatoFino) return Promise.resolve(null);
     var n = giorniDallUltimo(imp.ultimoBackup, adesso);
-    if (n === null) return 'Non hai ancora fatto un backup dei dati. Se il browser viene ripulito, spesa, agenda e promemoria vanno persi.';
-    if (n > GIORNI_AVVISO) return 'L\'ultimo backup dei dati risale a ' + n + ' giorni fa.';
-    return null;
+    if (n !== null && n <= GIORNI_AVVISO) return Promise.resolve(null);
+    return ciSonoDati().then(function (dati) { return dati ? { giorni: n } : null; });
   }
 
-  ui.registraScheda({
-    id: 'avviso-backup', titolo: 'Promemoria backup', icona: '💾', ordine: 2, nascondibile: false, dipendeDallaData: true,
-    disegna: function (corpo, contesto) {
-      return CasaNostra.impostazioni.leggi().then(function (imp) {
-        var testo = testoAvviso(imp, contesto.adesso);
-        if (!testo) return false;
-        return ciSonoDati().then(function (dati) {
-          if (!dati) return false;
-          corpo.appendChild(ui.el('p', { class: 'avviso-backup-testo', testo: testo }));
-          corpo.appendChild(ui.el('div', { class: 'avviso-backup-azioni' }, [
-            ui.el('a', { class: 'pulsante pulsante-primario', href: '#/impostazioni', testo: 'Fai il backup' }),
-            ui.el('button', {
-              type: 'button', class: 'pulsante pulsante-secondario', testo: 'Ricordamelo fra ' + GIORNI_POSTICIPO + ' giorni',
-              on: { click: CasaNostra.errori.protetta(function () {
-                var fino = date.aggiungiGiorni(date.oggi(new Date()), GIORNI_POSTICIPO);
-                return CasaNostra.impostazioni.aggiorna({ avvisoBackupPosticipatoFino: fino }).then(function () {
-                  return contesto.ridisegna();
-                });
-              }, 'posticipo dell\'avviso di backup') }
-            })
-          ]));
-        });
-      });
-    }
-  });
-
-  // ---------- interfaccia: gruppo "Ripristino iniziale" ----------
-
-  ui.registraGruppoImpostazioni({
-    id: 'ripristino', titolo: 'Ripristino iniziale', ordine: 90,
-    disegna: function (corpo) {
-      corpo.appendChild(ui.el('p', { class: 'aiuto', testo: 'Cancella tutto da questo dispositivo: spesa, agenda, attività, ' +
-        'promemoria casa, impostazioni e foto. Prima esporta il backup dati e l\'archivio foto.' }));
-      corpo.appendChild(ui.el('button', {
-        type: 'button', class: 'pulsante pulsante-pericolo', testo: 'Cancella tutto',
-        on: { click: CasaNostra.errori.protetta(function () {
-          return CasaNostra.dialoghi.conferma({
-            titolo: 'Cancellare tutto?',
-            messaggio: 'Verranno eliminati definitivamente tutti i dati, le impostazioni e le foto. Non si può annullare: ' +
-              'se non l\'hai ancora fatto, esporta prima il backup dati e l\'archivio foto.',
-            testoConferma: 'Cancella tutto', pericolo: true, richiediTesto: 'CANCELLA'
-          }).then(function (ok) {
-            if (!ok) return;
-            return ripristinoIniziale().then(function () {
-              history.replaceState(null, '', location.pathname + location.search + '#/');
-              location.reload();
-            });
-          });
-        }, 'ripristino iniziale') }
-      }));
-    }
-  });
+  function posticipaPromemoria(adesso) {
+    var fino = date.aggiungiGiorni(date.oggi(adesso || new Date()), GIORNI_POSTICIPO);
+    return CasaNostra.impostazioni.aggiorna({ avvisoBackupPosticipatoFino: fino });
+  }
 
   CasaNostra.backup = {
     APP: APP,
     SCHEMA: SCHEMA,
     RACCOLTE: RACCOLTE,
+    GIORNI_POSTICIPO: GIORNI_POSTICIPO,
     costruisci: costruisci,
     esporta: esporta,
+    leggiFile: leggiFile,
     leggi: leggi,
     riepilogo: riepilogo,
     importa: importa,
     ripristinoIniziale: ripristinoIniziale,
-    giorniDallUltimo: giorniDallUltimo
+    giorniDallUltimo: giorniDallUltimo,
+    promemoriaDovuto: promemoriaDovuto,
+    posticipaPromemoria: posticipaPromemoria
   };
 })(window.CasaNostra);

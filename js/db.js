@@ -8,6 +8,9 @@
  *   prodotti.list() / get(id) / put(record) / delete(id) / clear()      -> Promise
  *   CasaNostra.db.replaceAll({ prodotti: [...], appuntamenti: [...] })   -> Promise (una sola transazione)
  *
+ * Al primo salvataggio della sessione (put o replaceAll, su qualunque raccolta) chiede al browser l'archiviazione
+ * persistente con navigator.storage.persist(), se l'API esiste: in Chrome non mostra alcun prompt.
+ *
  * Gli errori sono sempre CasaNostra.db.ErroreDB con `tipo` ('nonDisponibile' | 'quota' | 'bloccato' |
  * 'generico') e `message` già in italiano, pronto da mostrare all'utente.
  */
@@ -17,15 +20,14 @@
   var NOME_DB = 'casa-nostra';
   var VERSIONE_DB = 1;
 
-  /** Schema: nome della raccolta -> descrizione. Aggiungere qui (e alzare VERSIONE_DB) solo se serve davvero. */
-  var RACCOLTE = {
-    prodotti: 'Prodotti della lista della spesa',
-    appuntamenti: 'Appuntamenti dell\'agenda',
-    attivita: 'Attività',
-    promemoriaCasa: 'Promemoria casa',
-    impostazioni: 'Impostazioni (un solo record con id "impostazioni")',
-    foto: 'Foto con blob e miniatura'
-  };
+  /**
+   * Schema: le raccolte (impostazioni ha un solo record, foto tiene blob e miniatura nello stesso record).
+   * Aggiungere qui (e alzare VERSIONE_DB) solo se serve davvero.
+   */
+  var RACCOLTE = ['prodotti', 'appuntamenti', 'attivita', 'promemoriaCasa', 'impostazioni', 'foto'];
+
+  /** Le raccolte dei dati strutturati (tutte tranne le foto): quelle del backup dati. */
+  var STRUTTURATE = RACCOLTE.filter(function (n) { return n !== 'foto'; });
 
   var MESSAGGI = {
     nonDisponibile: 'Questo browser non permette di salvare i dati (IndexedDB non disponibile). ' +
@@ -69,7 +71,7 @@
       }
       richiesta.onupgradeneeded = function () {
         var db = richiesta.result;
-        Object.keys(RACCOLTE).forEach(function (nome) {
+        RACCOLTE.forEach(function (nome) {
           if (!db.objectStoreNames.contains(nome)) db.createObjectStore(nome, { keyPath: 'id' });
         });
       };
@@ -90,7 +92,11 @@
     return aperto;
   }
 
-  /** Esegue `lavoro(store)` in una transazione; risolve con il risultato della richiesta restituita. */
+  /**
+   * Apre una transazione sulle raccolte `nomi` ed esegue `lavoro(tx)`, che riceve la IDBTransaction e può
+   * restituire una IDBRequest. Risolve al completamento della transazione con il risultato di quella richiesta
+   * (undefined se non ne restituisce una); rifiuta con un ErroreDB se la transazione viene annullata.
+   */
   function transazione(nomi, modo, lavoro) {
     return apri().then(function (db) {
       return new Promise(function (risolvi, rifiuta) {
@@ -117,7 +123,21 @@
   }
 
   function controllaNome(nome) {
-    if (!Object.prototype.hasOwnProperty.call(RACCOLTE, nome)) throw new Error('Raccolta sconosciuta: ' + nome);
+    if (RACCOLTE.indexOf(nome) === -1) throw new Error('Raccolta sconosciuta: ' + nome);
+  }
+
+  var persistenzaChiesta = false;
+
+  /** Al primo salvataggio della sessione chiede l'archiviazione persistente (se l'API esiste). Mai bloccante. */
+  function chiediPersistenza() {
+    if (persistenzaChiesta) return;
+    persistenzaChiesta = true;
+    var s = navigator.storage;
+    if (!s || typeof s.persist !== 'function') return;
+    Promise.resolve().then(function () {
+      return typeof s.persisted === 'function' ? s.persisted() : false;
+    }).then(function (gia) { if (!gia) return s.persist(); })
+      .catch(function (e) { CasaNostra.errori.registra(e, 'richiesta di archiviazione persistente'); });
   }
 
   /** Interfaccia uniforme per una raccolta. */
@@ -134,7 +154,7 @@
       },
       put: function (record) {
         return transazione([nome], 'readwrite', function (tx) { return tx.objectStore(nome).put(record); })
-          .then(function () { return record; });
+          .then(function () { chiediPersistenza(); return record; });
       },
       delete: function (id) {
         return transazione([nome], 'readwrite', function (tx) { return tx.objectStore(nome).delete(id); })
@@ -161,13 +181,14 @@
         (dati[nome] || []).forEach(function (r) { store.put(r); });
       });
       return null;
-    }).then(function () {});
+    }).then(function () { chiediPersistenza(); });
   }
 
   CasaNostra.db = {
     NOME_DB: NOME_DB,
     VERSIONE_DB: VERSIONE_DB,
-    RACCOLTE: Object.keys(RACCOLTE),
+    RACCOLTE: RACCOLTE.slice(),
+    STRUTTURATE: STRUTTURATE.slice(),
     apri: apri,
     raccolta: raccolta,
     replaceAll: replaceAll,

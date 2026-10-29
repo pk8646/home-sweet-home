@@ -37,15 +37,15 @@ Classic scripts, loaded in order by `index.html`; each adds exactly one property
 
 | Layer | Files | Role |
 |---|---|---|
-| Core | `js/casanostra.js`, `date.js`, `db.js`, `errori.js`, `ui.js`, `dialoghi.js`, `impostazioni.js` | namespace and ids; local-date arithmetic on `AAAA-MM-GG` strings (never UTC `Date`); IndexedDB collections with atomic `replaceAll`; central error handling and Italian toasts; shell (router, nav, clock, cards, toasts, `ui.el`); accessible dialogs; settings record |
+| Core | `js/casanostra.js`, `date.js`, `db.js`, `errori.js`, `ui.js`, `dialoghi.js`, `impostazioni.js` | namespace, ids and the `PREFISSO_LOCALSTORAGE`; local-date arithmetic on `AAAA-MM-GG` strings (never UTC `Date`); IndexedDB collections (`RACCOLTE`, `STRUTTURATE`) with atomic `replaceAll` and the one-per-session `navigator.storage.persist()` on first save; central error handling and Italian toasts; shell (router, nav, clock, cards, toasts, `ui.el`, `ui.scaricaBlob`, `ui.iconaAvviso`); accessible dialogs (`conferma`, `confermaElimina`, `modulo`); settings record |
 | Domain | `js/dominio/{spesa,agenda,attivita,casa}.js` | pure rules, no DOM, no persistence |
-| Services | `js/meteo.js`, `foto.js`, `archivio-foto.js`, `presentazione.js`, `backup.js`, `pwa.js` | Open-Meteo and LocalStorage copy; photo resize/thumbnails/object URLs; hand-written STORE ZIP with CRC32; slideshow; JSON backup, backup reminder, factory reset; SW registration and "new version" toast |
-| Sections | `js/sezioni/*.js` | each registers its page, dashboard card and settings group via `CasaNostra.ui.registraSezione/registraScheda/registraGruppoImpostazioni` |
+| Services | `js/meteo.js`, `foto.js`, `archivio-foto.js`, `presentazione.js`, `backup.js`, `pwa.js` | logic only: Open-Meteo and LocalStorage copy; photo resize/thumbnails/object URLs; hand-written STORE ZIP with CRC32; slideshow; JSON backup, backup-reminder rule, factory reset; SW registration and "new version" toast |
+| Sections | `js/sezioni/*.js` | the UI: each registers its page, dashboard card and settings group via `CasaNostra.ui.registraSezione/registraScheda/registraGruppoImpostazioni` (`sezioni/archivio-foto.js` and `sezioni/backup.js` hold the UI of the two services of the same name) |
 | Start | `js/avvio.js` (last) | checks persistence, starts the UI, runs `CasaNostra.alPronto` callbacks |
 
 CSS: `css/base.css` (variables), `layout.css`, `componenti.css`, `presentazione.css`, one file per section in `css/sezioni/`.
 
-Data lives only in the browser: IndexedDB database with collections `prodotti`, `appuntamenti`, `attivita`, `promemoriaCasa`, `impostazioni` (single record, ADR-0001), `foto` (blob and thumbnail in the same record). LocalStorage holds only the last weather response. The backup contract (`app: 'casa-nostra'`, `schemaVersion: 1`, `dati: {...}`, photos excluded) is validated entirely before an all-or-nothing replace; the migration hook for older versions is in `js/backup.js`.
+Data lives only in the browser: IndexedDB database with collections `prodotti`, `appuntamenti`, `attivita`, `promemoriaCasa`, `impostazioni` (single record, ADR-0001), `foto` (blob and thumbnail in the same record). LocalStorage holds only the last weather response, one key `casaNostra.meteo.copia` (the time of the last request lives inside that record). The weather card refreshes with a single 30-minute `setTimeout` that exists only while the page is visible; no `setInterval`. The backup contract (`app: 'casa-nostra'`, `schemaVersion: 1`, `dati: {...}`, photos excluded) is validated entirely before an all-or-nothing replace; the migration hook for older versions is in `js/backup.js`.
 
 The dashboard draws every card in isolation: a failing card shows its error inside itself and the others keep working. `<html data-casa-nostra="pronta">` signals that a view has finished drawing (tests wait on it).
 
@@ -54,7 +54,9 @@ The dashboard draws every card in isolation: a failing card shows its error insi
 - User text goes into the DOM only through `textContent` (`ui.el(tag, { testo })`). `innerHTML` only for static internal markup; no `eval`.
 - Adding a JS or CSS file: link it in `index.html` **and** add the same relative path to `RISORSE` in `sw.js` (icons and fetched resources too). The static and PWA tests fail if the lists diverge.
 - `VERSIONE` in `sw.js` is raised only when publishing a release, never within a feature change. The cache is named `casa-nostra-<VERSIONE>`; activation deletes only other `casa-nostra-*` caches.
-- Guarded APIs (Wake Lock, Service Worker, `createImageBitmap`, `navigator.storage`) are feature-checked with a fallback. The app never asks for notifications, location or camera permissions.
+- Guarded APIs (Wake Lock, Service Worker, `createImageBitmap`, `navigator.storage`, `IntersectionObserver`) are feature-checked with a fallback.
+- CSS must work in Chromium 80: no `inset`; `aspect-ratio` only behind `@supports not`; flex `gap` needs the margin fallback at the end of `css/componenti.css` (add new flex rows with `gap` there); focus rings use `:focus` plus `:focus:not(:focus-visible)`.
+- No test-only switches in app code: tests reach the app from outside (e.g. `lib/benvenuto.js` seeds IndexedDB). The app never asks for notifications, location or camera permissions.
 - The repo holds only code and static assets: never photos, backups (`casa-nostra-backup-*.json`) or archives (`*.zip`), which `.gitignore` excludes.
 
 ## Agent skills

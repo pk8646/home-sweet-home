@@ -68,11 +68,21 @@
       return numeroGiorno(a) - numeroGiorno(da);
     },
 
+    /** Giorno della settimana: 0 = domenica … 6 = sabato. */
+    giornoSettimana: function (iso) {
+      var p = parti(iso);
+      return new Date(Date.UTC(p.a, p.m - 1, p.g)).getUTCDay();
+    },
+
     /** 'mercoledì 28 ottobre 2026' */
     formattaLunga: function (iso) {
       var p = parti(iso);
-      var gs = new Date(Date.UTC(p.a, p.m - 1, p.g)).getUTCDay();
-      return GIORNI[gs] + ' ' + p.g + ' ' + MESI[p.m - 1] + ' ' + p.a;
+      return GIORNI[date.giornoSettimana(iso)] + ' ' + p.g + ' ' + MESI[p.m - 1] + ' ' + p.a;
+    },
+
+    /** 'mer 29/10' */
+    formattaGiornoBreve: function (iso) {
+      return GIORNI[date.giornoSettimana(iso)].slice(0, 3) + ' ' + date.formattaGiornoMese(iso);
     },
 
     /** '28/10/2026' */

@@ -12,6 +12,9 @@
   CasaNostra.dominio = CasaNostra.dominio || {};
   CasaNostra.sezioni = CasaNostra.sezioni || {};
 
+  /** Prefisso di ogni chiave dell'app in LocalStorage (oggi solo la copia del meteo; il ripristino le toglie tutte). */
+  CasaNostra.PREFISSO_LOCALSTORAGE = 'casaNostra.';
+
   /** Identificativo stabile generato sul client: timestamp in base 36 + parte casuale. */
   CasaNostra.nuovoId = function () {
     return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);

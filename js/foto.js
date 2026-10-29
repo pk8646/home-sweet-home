@@ -128,21 +128,7 @@
     });
   }
 
-  // ---------- spazio ----------
-
-  var persistenzaChiesta = false;
-
-  /** Al primo salvataggio chiede al browser di non cancellare i dati (se l'API esiste). Mai bloccante. */
-  function chiediPersistenza() {
-    if (persistenzaChiesta) return Promise.resolve();
-    persistenzaChiesta = true;
-    var s = navigator.storage;
-    if (!s || typeof s.persist !== 'function') return Promise.resolve();
-    return Promise.resolve().then(function () {
-      return typeof s.persisted === 'function' ? s.persisted() : false;
-    }).then(function (gia) { if (!gia) return s.persist(); })
-      .catch(function (e) { CasaNostra.errori.registra(e, 'richiesta di archiviazione persistente'); });
-  }
+  // ---------- spazio (la richiesta di archiviazione persistente sta in CasaNostra.db) ----------
 
   /**
    * Stima dello spazio: risolve con { scarso: bool, liberoByte } o null se non disponibile.
@@ -197,10 +183,7 @@
   }
 
   function salva(record) {
-    return raccolta().put(record).then(function () {
-      chiediPersistenza();
-      return metadati(record);
-    });
+    return raccolta().put(record).then(metadati);
   }
 
   /**
@@ -292,16 +275,7 @@
 
   /** Avvia il download di una foto con il suo nome. */
   function scarica(record) {
-    var u = URL.createObjectURL(record.blob);
-    var a = document.createElement('a');
-    a.href = u;
-    a.download = record.nome || 'foto.jpg';
-    a.rel = 'noopener';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(u); }, 1000);
+    CasaNostra.ui.scaricaBlob(record.blob, record.nome || 'foto.jpg');
   }
 
   CasaNostra.foto = {
@@ -319,7 +293,6 @@
     aggiungiElaborata: aggiungiElaborata,
     rigeneraMiniatura: rigeneraMiniatura,
     stimaSpazio: stimaSpazio,
-    chiediPersistenza: chiediPersistenza,
     gruppoUrl: gruppoUrl,
     scarica: scarica
   };

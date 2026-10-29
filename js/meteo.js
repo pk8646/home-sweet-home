@@ -130,9 +130,12 @@
   }
 
   // ---------- copia in LocalStorage (ADR-0001: è l'unico dato in LocalStorage, usa e getta) ----------
+  //
+  // Un solo record: { salvataIl: ms, localita, dati, ultimaRichiesta: ms }. L'orario dell'ultima richiesta
+  // (per il limite del pulsante Aggiorna) sta in memoria e, se c'è già una copia, anche dentro il suo record,
+  // così il limite sopravvive al ricaricamento della pagina.
 
-  var CHIAVE_COPIA = 'casaNostra.meteo.copia';
-  var CHIAVE_ULTIMA_RICHIESTA = 'casaNostra.meteo.ultimaRichiesta';
+  var CHIAVE_COPIA = CasaNostra.PREFISSO_LOCALSTORAGE + 'meteo.copia';
   var INTERVALLO_MS = 30 * 60 * 1000;
   var BLOCCO_MANUALE_MS = 60 * 1000;
 
@@ -176,9 +179,22 @@
     ['temperatura', 'percepita', 'umidita', 'vento', 'codice'].forEach(function (k) { numero(dati.attuale[k]); });
   }
 
+  var ultimaRichiestaInMemoria = 0;
+
   function ultimaRichiesta() {
-    var t = leggiJson(CHIAVE_ULTIMA_RICHIESTA);
-    return typeof t === 'number' ? t : 0;
+    var c = leggiJson(CHIAVE_COPIA);
+    var salvata = c && typeof c.ultimaRichiesta === 'number' ? c.ultimaRichiesta : 0;
+    return Math.max(ultimaRichiestaInMemoria, salvata);
+  }
+
+  /** Registra l'orario di una nuova richiesta: in memoria e nel record della copia, se esiste. */
+  function segnaRichiesta(t) {
+    ultimaRichiestaInMemoria = t;
+    var c = leggiJson(CHIAVE_COPIA);
+    if (c && typeof c === 'object') {
+      c.ultimaRichiesta = t;
+      scriviJson(CHIAVE_COPIA, c);
+    }
   }
 
   /** ms mancanti prima che il pulsante Aggiorna possa fare una nuova richiesta (0 = subito). */
@@ -200,6 +216,17 @@
     return adesso - ultimaRichiesta() >= pausa;
   }
 
+  /**
+   * ms che mancano al prossimo aggiornamento automatico (0 = già dovuto): quando la copia compie 30 minuti
+   * e sono passati 30 minuti dall'ultima richiesta. Serve al timer della scheda, attivo solo a pagina visibile.
+   */
+  function attesaAutomatica(localita, adesso) {
+    var t = adesso === undefined ? Date.now() : adesso;
+    var copia = copiaPer(localita);
+    var scadenza = Math.max(copia ? copia.salvataIl + INTERVALLO_MS : 0, ultimaRichiesta() + INTERVALLO_MS);
+    return Math.max(0, scadenza - t);
+  }
+
   var inCorsoOra = null;   // { localita, promessa }: una sola richiesta per volta
   var ultimoFallimento = null; // { localita, errore } dell'ultima richiesta fallita (solo in memoria)
 
@@ -209,11 +236,12 @@
    */
   function aggiorna(localita) {
     if (inCorsoOra && stessaLocalita(inCorsoOra.localita, localita)) return inCorsoOra.promessa;
-    scriviJson(CHIAVE_ULTIMA_RICHIESTA, Date.now());
+    var partita = Date.now();
+    segnaRichiesta(partita);
     var richiesta = { nome: String(localita.nome || ''), latitudine: Number(localita.latitudine), longitudine: Number(localita.longitudine) };
     var voce = { localita: richiesta };
     voce.promessa = scarica(richiesta).then(function (dati) {
-      var copia = { salvataIl: Date.now(), localita: richiesta, dati: dati };
+      var copia = { salvataIl: Date.now(), localita: richiesta, dati: dati, ultimaRichiesta: Math.max(partita, ultimaRichiestaInMemoria) };
       scriviJson(CHIAVE_COPIA, copia);
       ultimoFallimento = null;
       return copia;
@@ -284,6 +312,7 @@
     scarica: scarica,
     copiaPer: copiaPer,
     attesaManuale: attesaManuale,
+    attesaAutomatica: attesaAutomatica,
     aggiornamentoDovuto: aggiornamentoDovuto,
     aggiorna: aggiorna,
     inCorso: inCorso,
