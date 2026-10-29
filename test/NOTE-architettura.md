@@ -60,13 +60,14 @@ CasaNostra.ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località de
 - Impostazioni: `CasaNostra.impostazioni.leggi()` / `aggiorna({...})`, campi predefiniti: nomeVisualizzato, localita {nome, latitudine,
   longitudine} (Fiumicino), schedeVisibili {}, schermoAcceso, ultimoBackup, benvenutoVisto, avvisoBackupPosticipatoFino.
 
-## Test (fuori dal repo: `C:\Users\pk86\Documents\casa-nostra-test\`)
+## Test (nel repo, cartella `test/`, ADR-0003; prima volta: `npm install` dentro `test/`)
 ```
-node C:\Users\pk86\Documents\casa-nostra-test\run.js --root <WORKTREE>                    # tutti
-node C:\Users\pk86\Documents\casa-nostra-test\run.js --root <WORKTREE> agenda              # solo tests/agenda.test.js
-node C:\Users\pk86\Documents\casa-nostra-test\run.js --root <WORKTREE> spesa scheletro --grep "doppioni"
+node test/run.js                                          # tutti, sul sito della radice del repository
+node test/run.js agenda                                   # solo tests/agenda.test.js
+node test/run.js spesa scheletro --grep "doppioni"
    opzioni: --viewport tabletOrizzontale|tabletVerticale|smartphone|desktop  --paralleli N (default 4)  --headed
-   oppure CASA_NOSTRA_ROOT=<WORKTREE>. Porta libera casuale: più runner in parallelo sono ok. Server manuale: node server.js <root>.
+   --root <WORKTREE> oppure CASA_NOSTRA_ROOT=<WORKTREE> per un altro worktree. Porta libera casuale: più runner in parallelo sono ok.
+   Server manuale: node test/server.js [root].
 ```
 - Ognuno crea il PROPRIO file `tests/<sezione>.test.js` (non modificare quelli altrui). Esistenti: statico, scheletro, spesa.
   Nel proprio worktree i test degli altri ticket possono fallire (funzione non ancora presente): lanciare i propri + statico/scheletro/spesa.

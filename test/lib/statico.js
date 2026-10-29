@@ -6,13 +6,16 @@ const path = require('path');
 const vm = require('vm');
 
 const ESCLUSE = new Set(['node_modules']);
+// cartelle della radice che non sono parte dell'app: test/ è la suite stessa (esclusa da Pages in _config.yml)
+const ESCLUSE_IN_RADICE = new Set(['test']);
 
-/** Tutti i file sotto root con una delle estensioni date (percorsi relativi con '/'), escluse cartelle nascoste. */
+/** Tutti i file sotto root con una delle estensioni date (percorsi relativi con '/'), escluse cartelle nascoste e test/. */
 function elencaFile(root, estensioni) {
   const risultato = [];
   (function giro(dir) {
     for (const voce of fs.readdirSync(dir, { withFileTypes: true })) {
       if (voce.name.startsWith('.') || ESCLUSE.has(voce.name)) continue;
+      if (dir === root && ESCLUSE_IN_RADICE.has(voce.name)) continue;
       const completo = path.join(dir, voce.name);
       if (voce.isDirectory()) giro(completo);
       else if (estensioni.includes(path.extname(voce.name).toLowerCase())) {
