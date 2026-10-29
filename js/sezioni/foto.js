@@ -142,9 +142,16 @@
     var campo = ui.el('input', { id: idCampo, class: 'visivamente-nascosto', type: 'file', accept: 'image/*', multiple: true });
     var esito = ui.el('div', { class: 'foto-esito', 'aria-live': 'polite' });
     var area = ui.el('div', { class: 'foto-area' });
+    var elencoCorrente = [];
+    // Presentazione (#9): visibile solo se la galleria contiene foto.
+    var avviaPresentazione = ui.el('button', {
+      type: 'button', class: 'pulsante pulsante-secondario', testo: 'Presentazione', hidden: true,
+      on: { click: CasaNostra.errori.protetta(function () { return CasaNostra.presentazione.avvia(elencoCorrente.slice()); }, 'presentazione') }
+    });
     contenitore.appendChild(ui.el('div', { class: 'foto-barra' }, [
       campo,
-      ui.el('label', { class: 'pulsante pulsante-primario foto-aggiungi', for: idCampo, testo: 'Aggiungi foto' })
+      ui.el('label', { class: 'pulsante pulsante-primario foto-aggiungi', for: idCampo, testo: 'Aggiungi foto' }),
+      avviaPresentazione
     ]));
     contenitore.appendChild(esito);
     contenitore.appendChild(area);
@@ -154,6 +161,8 @@
         if (!area.isConnected) return;
         urlPagina.revocaTutti();
         ui.svuota(area);
+        elencoCorrente = elenco;
+        avviaPresentazione.hidden = !elenco.length;
         if (!elenco.length) {
           area.appendChild(ui.el('p', { class: 'vuoto foto-vuoto' },
             'Nessuna foto per ora. Tocca «Aggiungi foto» e scegli una o più immagini: ' +
@@ -212,6 +221,7 @@
 
   function esci() {
     chiudiVista();
+    CasaNostra.presentazione.chiudi();
     urlVista.revocaTutti();
     urlPagina.revocaTutti();
   }
