@@ -89,7 +89,7 @@ async function impostaVisibilita(page, stato) {
 test('il meteo non fa polling: nessun setInterval, e il timer di 30 minuti esiste solo con la pagina visibile', async ({ apri }) => {
   const app = await apri({ ora: '2026-10-28T09:05', rete: [meteoFinto()], scriptIniziale: tracciaTimer });
   const scheda = app.page.getByRole('region', { name: 'Meteo' });
-  await attendi(async () => assert.match(await scheda.textContent(), /Aggiornato alle 09:05/));
+  await attendi(async () => assert.match(await scheda.textContent(), /agg\. 09:05/));
   await app.avanzaOra(5 * 60 * 1000);
   assert.deepEqual(await app.page.evaluate(() => window.__intervalli), [], 'nessun setInterval');
   await attendi(async () => assert.equal(await app.page.evaluate(() => window.__lunghi.size), 1), { messaggio: 'un timer di 30 minuti con la pagina visibile' });
@@ -106,13 +106,13 @@ test('il meteo non fa polling: nessun setInterval, e il timer di 30 minuti esist
 test('LocalStorage contiene una sola chiave, la copia del meteo, anche dopo un aggiornamento a mano', async ({ apri }) => {
   const app = await apri({ ora: '2026-10-28T09:05', rete: [meteoFinto()] });
   const scheda = app.page.getByRole('region', { name: 'Meteo' });
-  await attendi(async () => assert.match(await scheda.textContent(), /Aggiornato alle 09:05/));
+  await attendi(async () => assert.match(await scheda.textContent(), /agg\. 09:05/));
   await app.avanzaOra(61 * 1000);
   const pulsante = scheda.getByRole('button', { name: 'Aggiorna' });
   await attendi(async () => assert.equal(await pulsante.isDisabled(), false));
   await pulsante.click();
   await attendi(async () => assert.equal(await pulsante.isDisabled(), true));
-  await attendi(async () => assert.match(await scheda.textContent(), /Aggiornato alle 09:06/));
+  await attendi(async () => assert.match(await scheda.textContent(), /agg\. 09:06/));
   assert.deepEqual(await app.page.evaluate(() => Object.keys(localStorage)), ['casaNostra.meteo.copia']);
 });
 
