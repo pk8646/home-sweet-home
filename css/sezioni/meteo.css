@@ -36,7 +36,8 @@
 
 .meteo-giorno:last-child { border-bottom: 0; }
 .meteo-giorno-data { font-weight: 600; }
-.meteo-giorno-condizione { overflow-wrap: anywhere; }
+/* La condizione va a capo solo tra le parole: `anywhere` la spezzava lettera per lettera in una colonna stretta. */
+.meteo-giorno-condizione { overflow-wrap: break-word; }
 .meteo-giorno-temperature { white-space: nowrap; }
 .meteo-minima { color: var(--testo-tenue); }
 
@@ -54,6 +55,14 @@
 @media (max-width: 420px) {
   .meteo-giorno { grid-template-columns: 5.5em 1.5em minmax(0, 1fr); }
   .meteo-giorno-temperature { grid-column: 3; }
+}
+
+/* Dashboard a più colonne (come in dashboard.css): la scheda è larga ~280 px, non c'è posto per la condizione
+   accanto a data, emoji e temperature, che va quindi sulla riga sotto, a tutta larghezza. */
+@media (orientation: landscape) and (min-width: 700px) {
+  .meteo-giorno { grid-template-columns: 5.5em 1.75em minmax(0, 1fr) auto; row-gap: 2px; }
+  .meteo-giorno-temperature { grid-column: 4; grid-row: 1; }
+  .meteo-giorno-condizione { grid-column: 1 / -1; grid-row: 2; }
 }
 
 /* Gruppo "Località del meteo" */

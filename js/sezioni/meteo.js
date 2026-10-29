@@ -32,9 +32,9 @@
         ui.el('span', { class: 'meteo-emoji', 'aria-hidden': 'true', testo: c.emoji }),
         ui.el('span', { class: 'meteo-giorno-condizione', testo: c.testo }),
         ui.el('span', { class: 'meteo-giorno-temperature' }, [
-          ui.el('span', { class: 'meteo-minima', testo: 'min ' + gradi(g.minima) }),
-          ' ',
-          ui.el('span', { class: 'meteo-massima', testo: 'max ' + gradi(g.massima) })
+          ui.el('span', { class: 'meteo-minima', testo: gradi(g.minima) }),
+          '/',
+          ui.el('span', { class: 'meteo-massima', testo: gradi(g.massima) })
         ])
       ]);
     })));

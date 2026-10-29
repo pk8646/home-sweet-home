@@ -71,6 +71,57 @@ test('con una risposta valida la scheda mostra i valori attuali e 5 giorni di pr
   assert.deepEqual(app.richiesteEsterne, []);
 });
 
+/** Per ogni giorno della previsione: righe occupate dalla condizione, da ciascuna sua parola e dalle temperature. */
+async function righeDeiGiorni(scheda) {
+  return scheda.getByRole('list', { name: 'Previsioni dei prossimi giorni' }).evaluate(function (ul) {
+    function righe(nodo, inizio, fine) {
+      const r = document.createRange();
+      if (inizio === undefined) r.selectNodeContents(nodo);
+      else { r.setStart(nodo, inizio); r.setEnd(nodo, fine); }
+      const cime = [];
+      Array.prototype.forEach.call(r.getClientRects(), function (q) {
+        if (q.width > 0 && !cime.some(function (c) { return Math.abs(c - q.top) < 2; })) cime.push(q.top);
+      });
+      return cime.length;
+    }
+    return Array.prototype.map.call(ul.children, function (li) {
+      const condizione = li.querySelector('.meteo-giorno-condizione');
+      const testo = condizione.firstChild;
+      const parole = [];
+      testo.data.replace(/\S+/g, function (parola, inizio) {
+        parole.push({ parola: parola, righe: righe(testo, inizio, inizio + parola.length) });
+      });
+      const temperature = li.querySelector('.meteo-giorno-temperature');
+      return {
+        condizione: condizione.textContent,
+        righe: righe(condizione),
+        parole: parole,
+        temperature: temperature.textContent,
+        righeTemperature: righe(temperature)
+      };
+    });
+  });
+}
+
+for (const viewport of ['tabletOrizzontale', 'tabletVerticale', 'smartphone', 'desktop']) {
+  test('su ' + viewport + ' le condizioni dei giorni si leggono in orizzontale e le temperature sono "minima°/massima°"', async ({ apri }) => {
+    const risposta = rispostaPrevisioni();
+    // condizioni brevi, di due parole e la più lunga di tutte
+    risposta.daily.weather_code = [2, 45, 80, 61, 85, 96];
+    const app = await apri({ viewport: viewport, rete: [{ url: PREVISIONI, json: risposta }] });
+    const scheda = schedaMeteo(app.page);
+    await attendi(async () => assert.match(await scheda.textContent(), /18°/));
+    const giorni = await righeDeiGiorni(scheda);
+    for (const g of giorni) {
+      for (const p of g.parole) assert.equal(p.righe, 1, '"' + p.parola + '" di "' + g.condizione + '" non si spezza');
+      // le condizioni di una o due parole stanno su una riga; le più lunghe vanno a capo solo tra le parole
+      if (g.parole.length <= 2) assert.equal(g.righe, 1, '"' + g.condizione + '" su una sola riga');
+      assert.equal(g.righeTemperature, 1, 'temperature di "' + g.condizione + '" su una riga');
+    }
+    assert.deepEqual(giorni.map((g) => g.temperature), ['13°/20°', '11°/22°', '11°/20°', '13°/18°', '9°/18°']);
+  });
+}
+
 const GUASTI = {
   'rete assente': { assente: true },
   'HTTP 500': { stato: 500, corpo: 'errore' },
