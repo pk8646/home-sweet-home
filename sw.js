@@ -48,6 +48,7 @@ var RISORSE = [
   'js/dominio/casa.js',
   'js/meteo.js',
   'js/foto.js',
+  'js/archivio-foto.js',
   'js/backup.js',
   'js/pwa.js',
   'js/sezioni/dashboard.js',
