@@ -1,0 +1,64 @@
+/* Promemoria casa: pagina e scheda della dashboard. */
+
+.casa-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--spazio);
+}
+
+.casa-filtro { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.casa-elenco {
+  background: var(--carta);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 12px var(--spazio);
+  margin-bottom: var(--spazio);
+}
+
+.casa-elenco-titolo { font-size: 1.25rem; margin: 4px 0 8px; }
+
+.lista-promemoria { list-style: none; margin: 0; padding: 0; }
+
+.voce-promemoria {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 0 10px 12px;
+  border-bottom: 1px solid var(--bordo);
+  border-left: 4px solid transparent;
+}
+
+.voce-promemoria:last-child { border-bottom: 0; }
+
+.promemoria-titolo { flex: 1 1 12em; min-width: 0; margin: 0; font-size: 1.1rem; overflow-wrap: anywhere; }
+
+.promemoria-dettagli {
+  flex: 1 1 100%;
+  order: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--testo-tenue);
+  font-size: 0.95rem;
+}
+
+.promemoria-note { flex: 1 1 100%; order: 3; margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
+
+.promemoria-azioni { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.promemoria-scaduto { border-left-color: var(--errore); }
+
+.promemoria-etichetta-scaduto {
+  color: var(--errore);
+  font-weight: 700;
+}
+
+.promemoria-completato .promemoria-titolo { text-decoration: line-through; color: var(--testo-tenue); }
+
+.lista-promemoria-compatta .voce-promemoria { padding-top: 6px; padding-bottom: 6px; }

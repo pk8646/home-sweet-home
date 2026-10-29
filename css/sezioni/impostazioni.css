@@ -1,0 +1,58 @@
+/* Stili della sezione impostazioni e della scheda di benvenuto. */
+
+.gruppo-impostazioni {
+  background: var(--carta);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: var(--spazio);
+  margin-bottom: var(--spazio);
+  max-width: 44rem;
+}
+
+.gruppo-titolo { font-size: 1.25rem; margin-bottom: 12px; }
+
+.impostazioni-riga {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.impostazioni-riga .campo { flex: 1 1 14rem; width: auto; }
+
+.impostazioni-schede {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.impostazioni-interruttore {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tocco);
+  cursor: pointer;
+}
+
+.privacy-elenco { margin: 0; padding-left: 1.25em; }
+.privacy-elenco li + li { margin-top: 6px; }
+
+/* Scheda di benvenuto: su tutta la larghezza della griglia della dashboard. */
+.scheda-benvenuto { grid-column: 1 / -1; }
+
+.benvenuto-azioni {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Backup dati (#11): avviso sulla dashboard e gruppo nelle impostazioni */
+.scheda-avviso-backup { grid-column: 1 / -1; }
+.avviso-backup-azioni {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.backup-importazione { margin-top: 16px; }
+.backup-errore { color: var(--errore); }

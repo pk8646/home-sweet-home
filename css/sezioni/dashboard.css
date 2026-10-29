@@ -1,0 +1,12 @@
+/* Dashboard: una colonna in verticale, più colonne in orizzontale. */
+
+.dashboard-griglia {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--spazio);
+  align-items: start;
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  .dashboard-griglia { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+}

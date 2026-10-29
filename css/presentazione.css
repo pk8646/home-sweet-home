@@ -1,0 +1,22 @@
+/* Presentazione delle foto (#9): occupa tutta la finestra anche senza Fullscreen API. */
+.presentazione {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  cursor: pointer;
+  outline: none;
+}
+
+.presentazione-foto {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}

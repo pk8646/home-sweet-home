@@ -1,0 +1,51 @@
+/* Agenda familiare: pagina e scheda della dashboard. */
+
+.agenda-liste { margin-top: var(--spazio); }
+
+.agenda-elenco {
+  background: var(--carta);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 12px var(--spazio);
+  margin-bottom: var(--spazio);
+}
+
+.agenda-elenco-titolo { font-size: 1.25rem; margin: 4px 0 8px; }
+
+summary.agenda-elenco-titolo { cursor: pointer; min-height: var(--tocco); display: flex; align-items: center; }
+
+.lista-appuntamenti { list-style: none; margin: 0; padding: 0; }
+
+.voce-appuntamento {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bordo);
+}
+
+.voce-appuntamento:last-child { border-bottom: 0; }
+
+.appuntamento-testo { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+
+.appuntamento-quando { color: var(--testo-tenue); font-size: 0.95rem; }
+
+.appuntamento-titolo { font-weight: 600; overflow-wrap: anywhere; }
+
+.appuntamento-note { color: var(--testo-tenue); white-space: pre-line; overflow-wrap: anywhere; }
+
+.appuntamento-imminente {
+  align-self: flex-start;
+  background: var(--terracotta);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.voce-imminente { border-left: 4px solid var(--terracotta); padding-left: 10px; }
+
+.appuntamento-azioni { display: flex; gap: 4px; flex: 0 0 auto; }
+
+.agenda-passati .appuntamento-titolo { color: var(--testo-tenue); }

@@ -1,0 +1,45 @@
+/* Lista della spesa: pagina e scheda della dashboard. */
+
+.spesa-aggiunta { margin-bottom: var(--spazio); }
+
+.riga-aggiunta { display: flex; gap: 8px; }
+.riga-aggiunta .campo { flex: 1 1 auto; min-width: 0; }
+.riga-aggiunta .pulsante { flex: 0 0 auto; }
+
+.spesa-elenco {
+  background: var(--carta);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 12px var(--spazio);
+  margin-bottom: var(--spazio);
+}
+
+.spesa-elenco-titolo { font-size: 1.25rem; margin: 4px 0 8px; }
+
+.lista-prodotti { list-style: none; margin: 0; padding: 0; }
+
+.voce-prodotto {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--bordo);
+}
+
+.voce-prodotto:last-child { border-bottom: 0; }
+
+.prodotto {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 56px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.prodotto-nome { overflow-wrap: anywhere; }
+
+.voce-acquistata .prodotto-nome { text-decoration: line-through; color: var(--testo-tenue); }
+
+.spesa-azioni { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }

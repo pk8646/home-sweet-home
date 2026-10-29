@@ -1,0 +1,71 @@
+/* Casa Nostra — variabili del tema, reset leggero e tipografia.
+   Tema chiaro e caldo (crema, salvia, terracotta); contrasto WCAG AA; testo base 18 px. */
+
+:root {
+  --crema: #f6efe3;
+  --carta: #fffaf2;
+  --bordo: #e2d4bf;
+  --testo: #2b2420;
+  --testo-tenue: #5c5048;
+  --salvia: #4c6a50;
+  --salvia-chiara: #e3ecdf;
+  --terracotta: #a4471f;
+  --terracotta-scura: #86391a;
+  --terracotta-chiara: #f6e1d5;
+  --errore: #8f1d14;
+  --errore-chiaro: #fbe3df;
+  --successo: #2f5d34;
+  --focus: #1f5fbf;
+
+  --raggio: 18px;
+  --raggio-piccolo: 12px;
+  --ombra: 0 2px 6px rgba(70, 45, 20, 0.08), 0 1px 2px rgba(70, 45, 20, 0.06);
+  --tocco: 48px;
+  --spazio: 16px;
+  --larghezza-nav: 104px;
+  --altezza-nav: 68px;
+  --carattere: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Arial, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--crema);
+  color: var(--testo);
+  font-family: var(--carattere);
+  font-size: 1.125rem; /* 18 px */
+  line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
+
+a { color: var(--terracotta-scura); }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* Contorno del fuoco solo da tastiera. Chromium < 86 non conosce :focus-visible: lì vale :focus, e la
+   seconda regola (selettore sconosciuto, quindi ignorata) non lo toglie. */
+:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+.noscript { padding: var(--spazio); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Casa Nostra",
+  "short_name": "Casa Nostra",
+  "description": "La dashboard di casa con spesa, agenda, attività, promemoria, meteo e foto.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#f6efe3",
+  "background_color": "#f6efe3",
+  "icons": [
+    { "src": "icone/icona.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icone/icona-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icone/icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icone/icona-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icone/icona-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
