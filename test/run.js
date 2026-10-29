@@ -15,13 +15,13 @@ const { chromium } = require('playwright-core');
 const { avviaServer } = require('./server');
 const libTest = require('./lib/test');
 const { creaApri } = require('./lib/app');
+const { radiceDelSito } = require('./lib/radice');
 
 const CHROME = process.env.CASA_NOSTRA_CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const CARTELLA_TEST = path.join(__dirname, 'tests');
-const RADICE_REPOSITORY = path.resolve(__dirname, '..');
 
 function leggiArgomenti(argv) {
-  const a = { file: [], paralleli: 4, headed: false, grep: null, viewport: null, root: process.env.CASA_NOSTRA_ROOT || RADICE_REPOSITORY };
+  const a = { file: [], paralleli: 4, headed: false, grep: null, viewport: null, root: null };
   for (let i = 0; i < argv.length; i++) {
     const x = argv[i];
     if (x === '--root') a.root = argv[++i];
@@ -60,7 +60,7 @@ function conTimeout(promessa, ms) {
 
 async function main() {
   const arg = leggiArgomenti(process.argv.slice(2));
-  const root = path.resolve(arg.root);
+  const root = radiceDelSito(arg.root);
   if (!fs.existsSync(path.join(root, 'index.html'))) {
     console.error('index.html non trovato in ' + root + ' (usa --root <cartella> o CASA_NOSTRA_ROOT)');
     process.exit(2);

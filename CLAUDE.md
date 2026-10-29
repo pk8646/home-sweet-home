@@ -23,7 +23,7 @@ Release check: the whole suite green on all four viewports (`tabletOrizzontale`,
 ### How the suite works
 
 - One seam: the real app in Chrome via `playwright-core`, acting only as a user and asserting on what is on screen. External boundaries are simulated: Open-Meteo network, chosen files, downloads, clock (`Europe/Rome`). Internal functions are not unit-tested.
-- Layout under `test/`: `run.js` (runner), `server.js` (static server), `lib/` (`test.js` API, `app.js` with `apri()`, `statico.js` syntax/resource checks, helpers `benvenuto.js`, `meteo-finto.js`, `immagini.js`), `tests/<area>.test.js`. `tests/collaudo.test.js` holds the cross-cutting release checks. `NOTE-architettura.md` there documents the `apri()` options and helpers.
+- Layout under `test/`: `run.js` (runner), `server.js` (static server), `lib/` (`test.js` API, `app.js` with `apri()`, `statico.js` syntax/resource checks, helpers `benvenuto.js`, `meteo-finto.js`, `immagini.js`, `visibile.js`, `radice.js`), `tests/<area>.test.js`. `tests/collaudo.test.js` holds the cross-cutting release checks. `NOTE-architettura.md` there documents the `apri()` options and helpers.
 - A test fails on any `console.error` or `pageerror`. Handled errors must go through `CasaNostra.errori` (which uses `console.warn`).
 - Service Worker is blocked by default in tests; `apri({ serviceWorker: 'allow' })` exercises it.
 - `statico.js` skips `test/` (and hidden folders, `node_modules`) when checking the site's own files.

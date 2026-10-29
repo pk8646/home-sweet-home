@@ -7,6 +7,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { radiceDelSito } = require('./lib/radice');
 
 const SOTTOPERCORSO = '/home-sweet-home/';
 
@@ -87,8 +88,8 @@ function avviaServer(root, porta) {
 module.exports = { avviaServer, SOTTOPERCORSO };
 
 if (require.main === module) {
-  const root = process.argv[2] || process.env.CASA_NOSTRA_ROOT || path.resolve(__dirname, '..');
+  const root = radiceDelSito(process.argv[2]);
   avviaServer(root, Number(process.argv[3]) || 0).then(function (s) {
-    console.log('Casa Nostra servita da ' + path.resolve(root) + ' su ' + s.url);
+    console.log('Casa Nostra servita da ' + root + ' su ' + s.url);
   });
 }

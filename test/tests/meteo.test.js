@@ -3,17 +3,15 @@
 // nelle impostazioni. La rete verso Open-Meteo è sempre intercettata: nessuna richiesta reale.
 const { test, assert, attendi, oraRoma } = require('../lib/test');
 const { rispostaMeteoFinta } = require('../lib/meteo-finto');
+const { conDatiIniziali } = require('../lib/benvenuto');
+const { conVisibile } = require('../lib/visibile');
 
 const PREVISIONI = 'https://api.open-meteo.com/v1/forecast**';
 const GEOCODING = 'https://geocoding-api.open-meteo.com/v1/search**';
-const CHIAVE_COPIA = 'casaNostra.meteo.copia';
-
-/** Risposta di Open-Meteo plausibile (opzioni in lib/meteo-finto.js): oggi 28/10/2026 alle 10:00 e i 3 giorni seguenti. */
-function rispostaPrevisioni(opzioni) { return rispostaMeteoFinta(opzioni); }
 
 /** Intercettazione delle previsioni che conta le richieste; `risposta` si può cambiare durante il test. */
 function previsioniContate() {
-  const p = { richieste: [], risposta: rispostaPrevisioni() };
+  const p = { richieste: [], risposta: rispostaMeteoFinta() };
   p.voce = {
     url: PREVISIONI,
     gestore: function (route) {
@@ -38,8 +36,7 @@ function giorniDellaScheda(scheda) { return scheda.getByRole('list', { name: 'Pr
  * (le parti con dimensioni nulle, cioè solo per i lettori di schermo, non contano).
  */
 function testiVisibili(voci) {
-  return voci.evaluateAll(function (li) {
-    function visibile(n) { const r = n.getBoundingClientRect(); return r.width > 1 && r.height > 1; }
+  return voci.evaluateAll(conVisibile(function (li) {
     function testo(n) {
       return Array.prototype.map.call(n.childNodes, function (c) {
         if (c.nodeType === 3) return c.data;
@@ -49,12 +46,12 @@ function testiVisibili(voci) {
     return li.map(function (n) {
       return Array.prototype.filter.call(n.children, visibile).map(function (c) { return testo(c).trim(); }).join(' ');
     });
-  });
+  }));
 }
 
 test('la previsione oraria ha 6 caselle ogni 2 ore dalla prossima ora intera della risposta, con ora, emoji e temperatura', async ({ apri }) => {
   // l'orologio del dispositivo non conta: le ore partono da current.time della risposta (10:00)
-  const risposta = rispostaPrevisioni({ ora: '2026-10-28T10:00', codiciOrari: { '2026-10-28T15:00': 3 } });
+  const risposta = rispostaMeteoFinta({ ora: '2026-10-28T10:00', codiciOrari: { '2026-10-28T15:00': 3 } });
   const app = await apri({ ora: '2026-10-28T09:05', rete: [{ url: PREVISIONI, json: risposta }] });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.equal(await oreDellaScheda(scheda).count(), 6));
@@ -64,7 +61,7 @@ test('la previsione oraria ha 6 caselle ogni 2 ore dalla prossima ora intera del
 });
 
 test('alle 22:30 la previsione oraria continua dopo la mezzanotte', async ({ apri }) => {
-  const risposta = rispostaPrevisioni({ ora: '2026-10-28T22:30' });
+  const risposta = rispostaMeteoFinta({ ora: '2026-10-28T22:30' });
   const app = await apri({ ora: '2026-10-28T22:31', rete: [{ url: PREVISIONI, json: risposta }] });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.equal(await oreDellaScheda(scheda).count(), 6));
@@ -73,7 +70,7 @@ test('alle 22:30 la previsione oraria continua dopo la mezzanotte', async ({ apr
 });
 
 test('la probabilità di pioggia compare solo dal 20% in su', async ({ apri }) => {
-  const risposta = rispostaPrevisioni({
+  const risposta = rispostaMeteoFinta({
     ora: '2026-10-28T10:00',
     pioggia: { '2026-10-28T11:00': 19, '2026-10-28T13:00': 20, '2026-10-28T15:00': 40, '2026-10-28T17:00': 100, '2026-10-28T19:00': 5 }
   });
@@ -89,7 +86,7 @@ test('la probabilità di pioggia compare solo dal 20% in su', async ({ apri }) =
 
 test('la previsione giornaliera ha esattamente i 3 giorni da domani, con giorno, emoji e "minima°/massima°"', async ({ apri }) => {
   // la risposta ha anche ieri e più giorni del necessario: si mostrano solo i 3 da domani
-  const risposta = rispostaPrevisioni({ ora: '2026-10-28T10:00', giorni: 6 });
+  const risposta = rispostaMeteoFinta({ ora: '2026-10-28T10:00', giorni: 6 });
   risposta.daily.time.unshift('2026-10-27');
   risposta.daily.weather_code.unshift(99);
   risposta.daily.temperature_2m_min.unshift(1);
@@ -102,24 +99,19 @@ test('la previsione giornaliera ha esattamente i 3 giorni da domani, con giorno,
 });
 
 test('la situazione attuale mostra emoji, temperatura, minima e massima di oggi, condizione, percepita e vento', async ({ apri }) => {
-  const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: rispostaPrevisioni() }] });
+  const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta() }] });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.equal(await oreDellaScheda(scheda).count(), 6));
-  const attuale = await scheda.evaluate(function (s) {
-    function visibile(n) { const r = n.getBoundingClientRect(); return r.width > 1 && r.height > 1; }
-    return Array.prototype.filter.call(s.querySelectorAll('.meteo-attuale, .meteo-condizione, .meteo-dettagli'), visibile).map(function (n) {
-      const copia = n.cloneNode(true);
-      copia.querySelectorAll('.solo-lettori').forEach(function (x) { x.remove(); });
-      return copia.textContent;
-    });
-  });
-  assert.deepEqual(attuale, ['⛅18°12°/21°', 'Parzialmente nuvoloso', 'Percepita 17° · Vento 14 km/h']);
+  // la riga in alto: a video la forma compatta "minima°/massima°", che i lettori di schermo non sentono
+  assert.deepEqual(await testiVisibili(scheda.locator('.meteo-attuale')), ['⛅ 18° 12°/21°']);
+  assert.ok(await scheda.getByText('Parzialmente nuvoloso', { exact: true }).isVisible());
+  assert.ok(await scheda.getByText('Percepita 17° · Vento 14 km/h', { exact: true }).isVisible());
   assert.doesNotMatch(await scheda.textContent(), /Umidità/);
   assert.deepEqual(app.richiesteEsterne, []);
 });
 
 test('i lettori di schermo sentono la condizione di ogni ora e di ogni giorno, non le emoji', async ({ apri }) => {
-  const risposta = rispostaPrevisioni({ ora: '2026-10-28T10:00', codiciOrari: { '2026-10-28T13:00': 61 }, pioggia: { '2026-10-28T13:00': 60 } });
+  const risposta = rispostaMeteoFinta({ ora: '2026-10-28T10:00', codiciOrari: { '2026-10-28T13:00': 61 }, pioggia: { '2026-10-28T13:00': 60 } });
   const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: risposta }] });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.equal(await oreDellaScheda(scheda).count(), 6));
@@ -133,29 +125,24 @@ test('i lettori di schermo sentono la condizione di ogni ora e di ogni giorno, n
   assert.match(await scheda.ariaSnapshot(), /Oggi da 12° a 21°/);
 });
 
-/** Riquadri sullo schermo dei pezzi della riga di fondo. */
-function rigaDiFondo(scheda) {
-  return scheda.evaluate(function (s) {
-    const testo = s.querySelector('.meteo-fondo-testo');
-    const pulsante = Array.prototype.find.call(s.querySelectorAll('button'), function (b) { return b.textContent === 'Aggiorna'; });
-    const r = function (n) { const b = n.getBoundingClientRect(); return { alto: b.top, basso: b.bottom }; };
-    return { testo: testo.textContent, riquadroTesto: r(testo), riquadroPulsante: r(pulsante), ultimo: s.lastElementChild.contains(pulsante) };
-  });
-}
-
 test('in fondo alla scheda, su una sola riga, ci sono località, orario dell\'aggiornamento e pulsante Aggiorna', async ({ apri }) => {
-  const app = await apri({ ora: '2026-10-28T14:30', rete: [{ url: PREVISIONI, json: rispostaPrevisioni({ ora: '2026-10-28T14:30' }) }] });
+  const app = await apri({ ora: '2026-10-28T14:30', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta({ ora: '2026-10-28T14:30' }) }] });
   const scheda = schedaMeteo(app.page);
-  await attendi(async () => assert.match(await scheda.textContent(), /agg\. 14:30/));
-  const fondo = await rigaDiFondo(scheda);
-  assert.equal(fondo.testo.replace(/ /g, ' '), 'Fiumicino · agg. 14:30');
-  assert.ok(fondo.ultimo, 'il pulsante è nell\'ultima riga della scheda');
+  const testo = scheda.getByText('Fiumicino · agg. 14:30', { exact: true });
+  await testo.waitFor();
+  const riquadroTesto = await testo.boundingBox();
+  const riquadroPulsante = await scheda.getByRole('button', { name: 'Aggiorna' }).boundingBox();
+  const riquadroGiorni = await scheda.getByRole('list', { name: 'Previsione giornaliera' }).boundingBox();
+  const misure = JSON.stringify({ riquadroTesto, riquadroPulsante, riquadroGiorni });
+  // sotto la previsione giornaliera, l'ultima parte della scheda
+  const fineGiorni = riquadroGiorni.y + riquadroGiorni.height;
+  assert.ok(riquadroTesto.y >= fineGiorni && riquadroPulsante.y >= fineGiorni, misure);
   // testo e pulsante si sovrappongono in verticale: stanno sulla stessa riga
-  assert.ok(fondo.riquadroTesto.alto < fondo.riquadroPulsante.basso && fondo.riquadroPulsante.alto < fondo.riquadroTesto.basso, JSON.stringify(fondo));
+  assert.ok(riquadroTesto.y < riquadroPulsante.y + riquadroPulsante.height && riquadroPulsante.y < riquadroTesto.y + riquadroTesto.height, misure);
 });
 
 test('una copia del giorno prima mostra anche la data dell\'aggiornamento', async ({ apri }) => {
-  const app = await apri({ ora: '2026-10-28T23:50', rete: [{ url: PREVISIONI, json: rispostaPrevisioni({ ora: '2026-10-28T23:45' }) }] });
+  const app = await apri({ ora: '2026-10-28T23:50', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta({ ora: '2026-10-28T23:45' }) }] });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.match(await scheda.textContent(), /agg\. 23:50/));
   await app.rete(PREVISIONI, { assente: true });
@@ -164,21 +151,27 @@ test('una copia del giorno prima mostra anche la data dell\'aggiornamento', asyn
   assert.match(await scheda.textContent(), /Fiumicino\s·\sagg\. 28\/10 23:50/);
 });
 
+/**
+ * Eseguita nella pagina: scrive in LocalStorage una copia fresca di Fiumicino lasciata dalla versione
+ * precedente dell'app (5 giorni, umidità, niente ore né minima/massima di oggi).
+ */
+function salvaCopiaNelFormatoPrecedente() {
+  localStorage.setItem('casaNostra.meteo.copia', JSON.stringify({
+    salvataIl: Date.now(), ultimaRichiesta: 0,
+    localita: { nome: 'Fiumicino', latitudine: 41.77, longitudine: 12.23 },
+    dati: {
+      attuale: { temperatura: 9, percepita: 8, umidita: 72, vento: 10, codice: 3 },
+      giorni: ['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'].map(function (d) { return { data: d, codice: 3, minima: 5, massima: 9 }; })
+    }
+  }));
+}
+
 test('una copia nel formato precedente provoca una nuova richiesta', async ({ apri }) => {
   const previsioni = previsioniContate();
   const app = await apri({ ora: '2026-10-28T09:05', rete: [previsioni.voce] });
   await attendi(async () => assert.equal(await oreDellaScheda(schedaMeteo(app.page)).count(), 6));
   assert.equal(previsioni.richieste.length, 1);
-  // la copia diventa quella fresca della versione precedente: 5 giorni, umidità, niente ore né minima/massima di oggi
-  await app.page.evaluate(function (chiave) {
-    const c = JSON.parse(localStorage.getItem(chiave));
-    c.dati = {
-      attuale: { temperatura: 9, percepita: 8, umidita: 72, vento: 10, codice: 3 },
-      giorni: ['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'].map(function (d) { return { data: d, codice: 3, minima: 5, massima: 9 }; })
-    };
-    c.ultimaRichiesta = 0;
-    localStorage.setItem(chiave, JSON.stringify(c));
-  }, CHIAVE_COPIA);
+  await app.page.evaluate(salvaCopiaNelFormatoPrecedente);
   await app.avanzaOra(2 * 60 * 1000);
   await app.ricarica();
   await attendi(async () => assert.equal(previsioni.richieste.length, 2));
@@ -190,17 +183,7 @@ test('una copia nel formato precedente, senza rete, mostra "Meteo non disponibil
   const app = await apri({
     ora: '2026-10-28T09:05',
     rete: [{ url: PREVISIONI, assente: true }],
-    scriptIniziale: function () {
-      // copia lasciata dalla versione precedente dell'app, ancora fresca
-      localStorage.setItem('casaNostra.meteo.copia', JSON.stringify({
-        salvataIl: Date.now(), ultimaRichiesta: 0,
-        localita: { nome: 'Fiumicino', latitudine: 41.77, longitudine: 12.23 },
-        dati: {
-          attuale: { temperatura: 9, percepita: 8, umidita: 72, vento: 10, codice: 3 },
-          giorni: ['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'].map(function (d) { return { data: d, codice: 3, minima: 5, massima: 9 }; })
-        }
-      }));
-    }
+    scriptIniziale: salvaCopiaNelFormatoPrecedente
   });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.match(await scheda.textContent(), /Meteo non disponibile/));
@@ -208,7 +191,7 @@ test('una copia nel formato precedente, senza rete, mostra "Meteo non disponibil
 });
 
 test('una risposta senza dati orari è una risposta inattesa', async ({ apri }) => {
-  const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: rispostaPrevisioni({ senzaOrari: true }) }] });
+  const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta({ senzaOrari: true }) }] });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.match(await scheda.textContent(), /Il servizio meteo ha risposto in modo inatteso/));
   assert.match(await scheda.textContent(), /Meteo non disponibile/);
@@ -239,12 +222,12 @@ test('un\'ora senza probabilità di pioggia (null) non mostra alcun dato di piog
 });
 
 test('una risposta con meno di 3 giorni da domani o con ore insufficienti è una risposta inattesa', async ({ apri }) => {
-  const corta = rispostaPrevisioni({ ora: '2026-10-28T10:00', giorni: 3 });
+  const corta = rispostaMeteoFinta({ ora: '2026-10-28T10:00', giorni: 3 });
   const app = await apri({ ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: corta }] });
   const scheda = schedaMeteo(app.page);
   await attendi(async () => assert.match(await scheda.textContent(), /risposto in modo inatteso/));
   // 4 giorni ma i dati orari finiscono prima delle 12 ore seguenti
-  const senzaOre = rispostaPrevisioni({ ora: '2026-10-28T22:30' });
+  const senzaOre = rispostaMeteoFinta({ ora: '2026-10-28T22:30' });
   for (const k of Object.keys(senzaOre.hourly)) senzaOre.hourly[k] = senzaOre.hourly[k].slice(0, 30);
   await app.rete(PREVISIONI, { json: senzaOre });
   await app.avanzaOra(61 * 1000);
@@ -290,14 +273,14 @@ function testiSpezzati(scheda) {
 
 /** Il caso più largo: condizione più lunga, temperature negative a due cifre, pioggia al 100% in ogni ora. */
 function rispostaLarga() {
-  const r = rispostaPrevisioni({ ora: '2026-10-28T22:30', codice: 96, temperatura: -15.4, codiciGiornalieri: [99, 96, 99, 86], minime: [-18, -18, -18, -18], massime: [-12, -12, -12, -12] });
+  const r = rispostaMeteoFinta({ ora: '2026-10-28T22:30', codice: 96, temperatura: -15.4, codiciGiornalieri: [99, 96, 99, 86], minime: [-18, -18, -18, -18], massime: [-12, -12, -12, -12] });
   r.hourly.temperature_2m = r.hourly.temperature_2m.map(function () { return -15.4; });
   r.hourly.precipitation_probability = r.hourly.precipitation_probability.map(function () { return 100; });
   r.hourly.weather_code = r.hourly.weather_code.map(function () { return 99; });
   return r;
 }
 
-const CASI_LARGHEZZA = { 'con dati tipici': rispostaPrevisioni, 'con i testi più larghi': rispostaLarga };
+const CASI_LARGHEZZA = { 'con dati tipici': rispostaMeteoFinta, 'con i testi più larghi': rispostaLarga };
 
 for (const viewport of ['tabletOrizzontale', 'tabletVerticale', 'smartphone', 'desktop']) {
   for (const caso of Object.keys(CASI_LARGHEZZA)) {
@@ -311,31 +294,19 @@ for (const viewport of ['tabletOrizzontale', 'tabletVerticale', 'smartphone', 'd
   }
 }
 
-/** Al primo avvio scrive nel database 3 appuntamenti e 3 attività, come in una settimana normale (agisce dall'esterno, come lib/benvenuto.js). */
-function settimanaNormale() {
-  const apriOriginale = IDBFactory.prototype.open;
-  IDBFactory.prototype.open = function () {
-    const richiesta = apriOriginale.apply(this, arguments);
-    let creato = false;
-    richiesta.addEventListener('upgradeneeded', function (ev) { if (ev.oldVersion === 0) creato = true; });
-    richiesta.addEventListener('success', function () {
-      if (!creato) return;
-      creato = false;
-      const tx = richiesta.result.transaction(['impostazioni', 'appuntamenti', 'attivita'], 'readwrite');
-      tx.objectStore('impostazioni').put({ id: 'impostazioni', benvenutoVisto: true, ultimoBackup: '2026-10-27T10:00:00.000Z' });
-      [['Dentista', '2026-10-28', '15:30'], ['Calcetto di Luca', '2026-10-29', '18:00'], ['Cena dai nonni', '2026-10-31', '20:00']].forEach(function (a, i) {
-        tx.objectStore('appuntamenti').put({ id: 'a' + i, titolo: a[0], data: a[1], ora: a[2], note: '', creatoIl: '2026-10-01T08:00:00.000Z' });
-      });
-      ['Chiamare l\'idraulico', 'Pagare la mensa', 'Comprare il regalo'].forEach(function (t, i) {
-        tx.objectStore('attivita').put({ id: 't' + i, titolo: t, nota: '', completata: false, creataIl: '2026-10-01T08:00:00.000Z', completataIl: null });
-      });
-    });
-    return richiesta;
-  };
-}
+/** Al primo avvio il database ha già 3 appuntamenti e 3 attività, come in una settimana normale. */
+const settimanaNormale = conDatiIniziali({
+  impostazioni: [{ id: 'impostazioni', benvenutoVisto: true, ultimoBackup: '2026-10-27T10:00:00.000Z' }],
+  appuntamenti: [['Dentista', '2026-10-28', '15:30'], ['Calcetto di Luca', '2026-10-29', '18:00'], ['Cena dai nonni', '2026-10-31', '20:00']].map(function (a, i) {
+    return { id: 'a' + i, titolo: a[0], data: a[1], ora: a[2], note: '', creatoIl: '2026-10-01T08:00:00.000Z' };
+  }),
+  attivita: ['Chiamare l\'idraulico', 'Pagare la mensa', 'Comprare il regalo'].map(function (t, i) {
+    return { id: 't' + i, titolo: t, nota: '', completata: false, creataIl: '2026-10-01T08:00:00.000Z', completataIl: null };
+  })
+});
 
 test('a 1024×600 la scheda Meteo non è più alta della scheda più alta della sua riga', async ({ apri }) => {
-  const risposta = rispostaPrevisioni({ ora: '2026-10-28T10:00', pioggia: { '2026-10-28T13:00': 60 } });
+  const risposta = rispostaMeteoFinta({ ora: '2026-10-28T10:00', pioggia: { '2026-10-28T13:00': 60 } });
   const app = await apri({ viewport: 'tabletOrizzontale', ora: '2026-10-28T10:00', rete: [{ url: PREVISIONI, json: risposta }], scriptIniziale: settimanaNormale });
   await attendi(async () => assert.equal(await oreDellaScheda(schedaMeteo(app.page)).count(), 6));
   await attendi(async () => assert.match(await app.page.getByRole('region', { name: 'Agenda' }).textContent(), /Cena dai nonni/));
@@ -362,7 +333,7 @@ const GUASTI = {
 
 Object.keys(GUASTI).forEach(function (nome) {
   test('con ' + nome + ' e una copia presente compare la copia con l\'orario di aggiornamento', async ({ apri }) => {
-    const app = await apri({ ora: '2026-10-28T09:05', rete: [{ url: PREVISIONI, json: rispostaPrevisioni() }] });
+    const app = await apri({ ora: '2026-10-28T09:05', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta() }] });
     await attendi(async () => assert.match(await schedaMeteo(app.page).textContent(), /18°/));
     await app.rete(PREVISIONI, GUASTI[nome]);
     await app.avanzaOra(31 * 60 * 1000);
@@ -403,7 +374,7 @@ test('il pulsante Aggiorna non permette più di una richiesta al minuto', async 
   await attendi(async () => assert.equal(await pulsante.isDisabled(), true));
   await app.avanzaOra(61 * 1000);
   await attendi(async () => assert.equal(await pulsante.isDisabled(), false));
-  previsioni.risposta = rispostaPrevisioni({ temperatura: 21 });
+  previsioni.risposta = rispostaMeteoFinta({ temperatura: 21 });
   await pulsante.click();
   await attendi(async () => assert.match(await scheda.textContent(), /21°/));
   assert.equal(previsioni.richieste.length, 2);
@@ -468,7 +439,7 @@ test('la ricerca di "Roma" mostra risultati selezionabili; sceglierne uno salva 
   assert.equal(url.searchParams.get('name'), 'Roma');
   assert.equal(url.searchParams.get('language'), 'it');
 
-  previsioni.risposta = rispostaPrevisioni({ temperatura: 23 });
+  previsioni.risposta = rispostaMeteoFinta({ temperatura: 23 });
   await scelta.click();
   await attendi(async () => assert.match(await gruppo.textContent(), /Località attuale: Roma/));
   await attendi(async () => assert.ok(previsioni.richieste.some(function (u) {
@@ -490,7 +461,7 @@ test('la ricerca di "Roma" mostra risultati selezionabili; sceglierne uno salva 
 });
 
 test('una copia relativa a un\'altra località non viene mostrata come attuale', async ({ apri }) => {
-  const app = await apri({ ora: '2026-10-28T09:05', rete: [{ url: PREVISIONI, json: rispostaPrevisioni() }] });
+  const app = await apri({ ora: '2026-10-28T09:05', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta() }] });
   await attendi(async () => assert.match(await schedaMeteo(app.page).textContent(), /18°/));
   await app.rete(PREVISIONI, { assente: true });
   await app.vai('#/impostazioni');
@@ -508,7 +479,7 @@ test('una copia relativa a un\'altra località non viene mostrata come attuale',
 });
 
 test('le coordinate non valide vengono rifiutate con un messaggio', async ({ apri }) => {
-  const app = await apri({ percorso: '#/impostazioni', rete: [{ url: PREVISIONI, json: rispostaPrevisioni() }] });
+  const app = await apri({ percorso: '#/impostazioni', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta() }] });
   const gruppo = gruppoLocalita(app.page);
   const salva = gruppo.getByRole('button', { name: 'Salva coordinate' });
   const casi = [
@@ -560,7 +531,7 @@ test('le richieste vanno solo a Open-Meteo in https con coordinate o testo cerca
   await app.contesto.route('**/*open-meteo.com/**', function (route) {
     const u = route.request().url();
     tutte.push({ url: u, metodo: route.request().method(), corpo: route.request().postData() });
-    const json = u.includes('geocoding') ? RISULTATI_ROMA : rispostaPrevisioni();
+    const json = u.includes('geocoding') ? RISULTATI_ROMA : rispostaMeteoFinta();
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(json) });
   });
   const gruppo = gruppoLocalita(app.page);
@@ -595,7 +566,7 @@ test('le richieste vanno solo a Open-Meteo in https con coordinate o testo cerca
 });
 
 test('su smartphone scheda e impostazioni del meteo non escono dallo schermo', async ({ apri }) => {
-  const app = await apri({ viewport: 'smartphone', rete: [{ url: PREVISIONI, json: rispostaPrevisioni({ codice: 96 }) }] });
+  const app = await apri({ viewport: 'smartphone', rete: [{ url: PREVISIONI, json: rispostaMeteoFinta({ codice: 96 }) }] });
   await attendi(async () => assert.match(await schedaMeteo(app.page).textContent(), /Temporale con grandine/));
   assert.equal(await app.overflowOrizzontale(), 0);
   await app.vai('#/impostazioni');
