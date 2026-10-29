@@ -1,0 +1,3 @@
+# GitHub Pages pubblica con Jekyll: la suite di test (test/, ADR-0003) non fa parte del sito.
+exclude:
+  - test

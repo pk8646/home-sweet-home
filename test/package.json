@@ -1,7 +1,7 @@
 {
   "name": "casa-nostra-test",
   "private": true,
-  "description": "Infrastruttura di test di Casa Nostra (fuori dal repository)",
+  "description": "Suite di test di Casa Nostra: npm install qui, poi node test/run.js dalla radice del repository",
   "scripts": {
     "test": "node run.js"
   },

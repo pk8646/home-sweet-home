@@ -1,9 +1,10 @@
 'use strict';
 // Runner dei test di Casa Nostra.
 //
-//   node run.js --root <cartella-del-sito> [file-o-nome ...] [--grep testo] [--viewport nome] [--paralleli N] [--headed]
+//   node test/run.js [--root <cartella-del-sito>] [file-o-nome ...] [--grep testo] [--viewport nome] [--paralleli N] [--headed]
 //
-// - la root si può dare anche con la variabile d'ambiente CASA_NOSTRA_ROOT (default: cartella corrente)
+// - root di default: la radice del repository (la cartella che contiene test/); --root o la variabile
+//   d'ambiente CASA_NOSTRA_ROOT servono per provare un altro worktree
 // - senza file vengono eseguiti tutti i tests/**/*.test.js; "spesa" equivale a tests/spesa.test.js
 // - --viewport cambia il viewport predefinito di apri() (tabletOrizzontale, tabletVerticale, smartphone, desktop)
 // - ogni esecuzione usa una porta libera casuale: più runner possono girare in parallelo
@@ -17,9 +18,10 @@ const { creaApri } = require('./lib/app');
 
 const CHROME = process.env.CASA_NOSTRA_CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const CARTELLA_TEST = path.join(__dirname, 'tests');
+const RADICE_REPOSITORY = path.resolve(__dirname, '..');
 
 function leggiArgomenti(argv) {
-  const a = { file: [], paralleli: 4, headed: false, grep: null, viewport: null, root: process.env.CASA_NOSTRA_ROOT || process.cwd() };
+  const a = { file: [], paralleli: 4, headed: false, grep: null, viewport: null, root: process.env.CASA_NOSTRA_ROOT || RADICE_REPOSITORY };
   for (let i = 0; i < argv.length; i++) {
     const x = argv[i];
     if (x === '--root') a.root = argv[++i];

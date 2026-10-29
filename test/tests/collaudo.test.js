@@ -184,7 +184,9 @@ test('l\'app non chiede mai permessi: notifiche, posizione, fotocamera e microfo
 });
 
 test('il repository contiene solo codice e risorse statiche: niente foto, backup, archivi né Node', async ({ root }) => {
-  const file = execFileSync('git', ['-C', root, 'ls-files'], { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+  // l'unico Node ammesso è il manifesto della suite di test (ADR-0003); node_modules resta vietato ovunque
+  const suite = new Set(['test/package.json', 'test/package-lock.json']);
+  const file = execFileSync('git', ['-C', root, 'ls-files'], { encoding: 'utf8' }).split(/\r?\n/).filter((f) => f && !suite.has(f));
   const sospetti = file.filter((f) =>
     /\.(zip|jpe?g|webp|gif|heic|bmp)$/i.test(f) ||
     (/\.png$/i.test(f) && !f.startsWith('icone/')) ||

@@ -1,7 +1,8 @@
 'use strict';
 // Server statico minimale: serve la cartella `root` sotto il sottopercorso /home-sweet-home/,
 // come GitHub Pages. Uso da riga di comando:
-//   node server.js <root-del-sito> [porta]      (porta 0 o assente = porta libera casuale)
+//   node test/server.js [root-del-sito] [porta]
+// root assente = CASA_NOSTRA_ROOT o la radice del repository; porta 0 o assente = porta libera casuale
 
 const http = require('http');
 const fs = require('fs');
@@ -86,11 +87,7 @@ function avviaServer(root, porta) {
 module.exports = { avviaServer, SOTTOPERCORSO };
 
 if (require.main === module) {
-  const root = process.argv[2] || process.env.CASA_NOSTRA_ROOT;
-  if (!root) {
-    console.error('Uso: node server.js <root-del-sito> [porta]');
-    process.exit(2);
-  }
+  const root = process.argv[2] || process.env.CASA_NOSTRA_ROOT || path.resolve(__dirname, '..');
   avviaServer(root, Number(process.argv[3]) || 0).then(function (s) {
     console.log('Casa Nostra servita da ' + path.resolve(root) + ' su ' + s.url);
   });
