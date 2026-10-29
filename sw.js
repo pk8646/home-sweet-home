@@ -33,6 +33,7 @@ var RISORSE = [
   'css/sezioni/casa.css',
   'css/sezioni/meteo.css',
   'css/sezioni/foto.css',
+  'css/presentazione.css',
   'css/sezioni/impostazioni.css',
 
   'js/casanostra.js',
@@ -49,6 +50,7 @@ var RISORSE = [
   'js/meteo.js',
   'js/foto.js',
   'js/archivio-foto.js',
+  'js/presentazione.js',
   'js/backup.js',
   'js/pwa.js',
   'js/sezioni/dashboard.js',
