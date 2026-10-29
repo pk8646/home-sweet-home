@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Casa Nostra is a static PWA (Italian UI, Italian code identifiers) published as-is on GitHub Pages at `https://pk8646.github.io/home-sweet-home/`. No build, no framework, no Node in the repo: plain HTML/CSS/vanilla JS for Chromium ≥ 80. The spec is GitHub issue #1; `README.md` is the user-facing guide.
+Casa Nostra is a static PWA (Italian UI, Italian code identifiers) published as-is on GitHub Pages at `https://pk8646.github.io/home-sweet-home/`. No build, no framework, no Node in the published site: plain HTML/CSS/vanilla JS for Chromium ≥ 80 (Node exists only in the test suite under `test/`, never in what Pages serves). The spec is GitHub issue #1; `README.md` is the user-facing guide.
 
 ## Development and tests
 
@@ -44,7 +44,7 @@ Classic scripts, loaded in order by `index.html`; each adds exactly one property
 
 CSS: `css/base.css` (variables), `layout.css`, `componenti.css`, `presentazione.css`, one file per section in `css/sezioni/`.
 
-Data lives only in the browser: IndexedDB database with collections `prodotti`, `appuntamenti`, `attivita`, `promemoriaCasa`, `impostazioni` (single record, ADR-0001), `foto` (blob and thumbnail in the same record). LocalStorage holds only the last weather response, one key `casaNostra.meteo.copia` (the time of the last request lives inside that record). The weather card refreshes with a single 30-minute `setTimeout` that exists only while the page is visible; no `setInterval`. The backup contract (`app: 'casa-nostra'`, `schemaVersion: 1`, `dati: {...}`, photos excluded) is validated entirely before an all-or-nothing replace; the migration hook for older versions is in `js/backup.js`.
+Data lives only in the browser: IndexedDB database with collections `prodotti`, `appuntamenti`, `attivita`, `promemoriaCasa`, `impostazioni` (single record, ADR-0001), `foto` (blob and thumbnail in the same record). LocalStorage holds only the last weather response, one key `casaNostra.meteo.copia` (the time of the last request lives inside that record; a copy in an older format is discarded and downloaded again, with no migration, ADR-0001). The weather card refreshes with a single 30-minute `setTimeout` that exists only while the page is visible; no `setInterval`. The backup contract (`app: 'casa-nostra'`, `schemaVersion: 1`, `dati: {...}`, photos excluded) is validated entirely before an all-or-nothing replace; the migration hook for older versions is in `js/backup.js`.
 
 The dashboard draws every card in isolation: a failing card shows its error inside itself and the others keep working. `<html data-casa-nostra="pronta">` signals that a view has finished drawing (tests wait on it).
 
