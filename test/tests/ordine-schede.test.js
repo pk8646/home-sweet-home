@@ -61,3 +61,76 @@ test('▲▼ nelle Impostazioni riordinano le schede, i pulsanti ai bordi sono d
   await app.vai('#/impostazioni');
   assert.deepEqual(await righeImpostazioni(app.page), ['Spesa', 'Meteo', 'Agenda', 'Attività', 'Foto', 'Casa']);
 });
+
+test('"Ripristina ordine predefinito" riporta subito l\'ordine originale, anche dopo una ricarica', async ({ apri }) => {
+  const app = await apri({ percorso: '#/impostazioni', rete: [meteoFinto()], scriptIniziale: conImpostazioni({ ordineSchede: ['foto', 'casa', 'spesa'] }) });
+  assert.deepEqual(await righeImpostazioni(app.page), ['Foto', 'Casa', 'Spesa', 'Meteo', 'Agenda', 'Attività']);
+  await gruppoSchede(app.page).getByRole('button', { name: 'Ripristina ordine predefinito' }).click();
+  assert.equal(await app.page.getByRole('dialog').count(), 0, 'nessun dialogo di conferma');
+  assert.deepEqual(await righeImpostazioni(app.page), ['Meteo', 'Agenda', 'Attività', 'Spesa', 'Casa', 'Foto']);
+  await app.vai('#/');
+  assert.deepEqual(await schedeDashboard(app.page), PREDEFINITO);
+  await app.ricarica();
+  assert.deepEqual(await schedeDashboard(app.page), PREDEFINITO);
+});
+
+test('una scheda nascosta conserva la sua posizione e ricompare lì quando viene riattivata', async ({ apri }) => {
+  const app = await apri({ percorso: '#/impostazioni', rete: [meteoFinto()], scriptIniziale: conImpostazioni({ ordineSchede: ['spesa', 'agenda', 'meteo'] }) });
+  const agenda = gruppoSchede(app.page).getByRole('checkbox', { name: 'Agenda' });
+  await agenda.uncheck();
+  await attendi(async () => assert.equal(await agenda.isEnabled(), true));
+  assert.deepEqual(await righeImpostazioni(app.page), ['Spesa', 'Agenda', 'Meteo', 'Attività', 'Casa', 'Foto']);
+  await app.vai('#/');
+  assert.deepEqual(await schedeDashboard(app.page), ['spesa', 'meteo', 'attivita', 'casa', 'foto']);
+  await app.vai('#/impostazioni');
+  await gruppoSchede(app.page).getByRole('button', { name: 'Sposta Meteo giù' }).click();
+  await gruppoSchede(app.page).getByRole('checkbox', { name: 'Agenda' }).check();
+  await app.vai('#/');
+  assert.deepEqual(await schedeDashboard(app.page), ['spesa', 'agenda', 'attivita', 'meteo', 'casa', 'foto']);
+});
+
+test('una scheda che esce dalla griglia e poi rientra torna nella sua posizione dell\'ordine delle schede', async ({ apri }) => {
+  const app = await apri({ rete: [meteoFinto()], scriptIniziale: conImpostazioni({ ordineSchede: ['casa', 'prova', 'meteo'] }) });
+  await app.page.evaluate(() => {
+    window.__provaVuota = false;
+    CasaNostra.ui.registraScheda({ id: 'prova', titolo: 'Prova', ordine: 99,
+      disegna: (corpo, contesto) => {
+        window.__ridisegnaProva = contesto.ridisegna;
+        if (window.__provaVuota) return false;
+        corpo.appendChild(CasaNostra.ui.el('p', { testo: 'Contenuto di prova' }));
+      } });
+    return CasaNostra.ui.ridisegna();
+  });
+  await app.page.getByRole('region', { name: 'Prova' }).waitFor();
+  assert.deepEqual(await schedeDashboard(app.page), ['casa', 'prova', 'meteo', 'agenda', 'attivita', 'spesa', 'foto']);
+  await app.page.evaluate(() => { window.__provaVuota = true; return window.__ridisegnaProva(); });
+  assert.deepEqual(await schedeDashboard(app.page), ['casa', 'meteo', 'agenda', 'attivita', 'spesa', 'foto']);
+  await app.page.evaluate(() => { window.__provaVuota = false; return window.__ridisegnaProva(); });
+  assert.deepEqual(await schedeDashboard(app.page), ['casa', 'prova', 'meteo', 'agenda', 'attivita', 'spesa', 'foto']);
+});
+
+// Con window.__guasto = true la scrittura nella raccolta 'impostazioni' fallisce, come con lo spazio esaurito.
+function guastoImpostazioni() {
+  const put = IDBObjectStore.prototype.put;
+  IDBObjectStore.prototype.put = function () {
+    if (window.__guasto && this.name === 'impostazioni') throw new DOMException('Spazio finito', 'QuotaExceededError');
+    return put.apply(this, arguments);
+  };
+}
+
+test('se il salvataggio dell\'ordine fallisce l\'ordine sullo schermo torna quello di prima e compare un messaggio', async ({ apri }) => {
+  const app = await apri({
+    percorso: '#/impostazioni', rete: [meteoFinto()],
+    scriptIniziale: conImpostazioni({ ordineSchede: ['spesa'] }) + '(' + guastoImpostazioni + ')();'
+  });
+  const prima = ['Spesa', 'Meteo', 'Agenda', 'Attività', 'Casa', 'Foto'];
+  assert.deepEqual(await righeImpostazioni(app.page), prima);
+  await app.page.evaluate(() => { window.__guasto = true; });
+  await gruppoSchede(app.page).getByRole('button', { name: 'Sposta Spesa giù' }).click();
+  await attendi(async () => assert.match(await app.page.locator('body').textContent(), /Spazio esaurito/));
+  await attendi(async () => assert.deepEqual(await righeImpostazioni(app.page), prima));
+  assert.equal(await gruppoSchede(app.page).getByRole('button', { name: 'Sposta Spesa su' }).isDisabled(), true);
+  await app.page.evaluate(() => { window.__guasto = false; });
+  await app.vai('#/');
+  assert.deepEqual(await schedeDashboard(app.page), ['spesa', 'meteo', 'agenda', 'attivita', 'casa', 'foto']);
+});
