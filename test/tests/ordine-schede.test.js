@@ -134,3 +134,42 @@ test('se il salvataggio dell\'ordine fallisce l\'ordine sullo schermo torna quel
   await app.vai('#/');
   assert.deepEqual(await schedeDashboard(app.page), ['spesa', 'meteo', 'agenda', 'attivita', 'casa', 'foto']);
 });
+
+// window.__lettureGuaste = n: le prossime n letture della raccolta 'impostazioni' falliscono (Infinity = tutte).
+function guastoLettura() {
+  const get = IDBObjectStore.prototype.get;
+  window.__lettureGuaste = 0;
+  IDBObjectStore.prototype.get = function () {
+    if (window.__lettureGuaste > 0 && this.name === 'impostazioni') {
+      window.__lettureGuaste--;
+      throw new DOMException('Lettura impossibile', 'UnknownError');
+    }
+    return get.apply(this, arguments);
+  };
+}
+
+test('se la lettura delle impostazioni fallisce durante un cambio d\'ordine lo schermo torna all\'ordine salvato', async ({ apri }) => {
+  const app = await apri({
+    percorso: '#/impostazioni', rete: [meteoFinto()],
+    scriptIniziale: conImpostazioni({ ordineSchede: ['spesa'] }) + '(' + guastoLettura + ')();'
+  });
+  const prima = ['Spesa', 'Meteo', 'Agenda', 'Attività', 'Casa', 'Foto'];
+  assert.deepEqual(await righeImpostazioni(app.page), prima);
+  const giuSpesa = gruppoSchede(app.page).getByRole('button', { name: 'Sposta Spesa giù' });
+
+  // fallisce solo la lettura del salvataggio: lo schermo mostra l'ordine che c'è davvero nel database
+  await app.page.evaluate(() => { window.__lettureGuaste = 1; });
+  await giuSpesa.click();
+  await attendi(async () => assert.equal(await app.page.locator('.toast').count() > 0, true));
+  await attendi(async () => assert.deepEqual(await righeImpostazioni(app.page), prima));
+
+  // fallisce anche la rilettura: lo schermo torna all'ordine di prima del gesto
+  await app.page.evaluate(() => { window.__lettureGuaste = Infinity; });
+  await giuSpesa.click();
+  await attendi(async () => assert.deepEqual(await righeImpostazioni(app.page), prima));
+  assert.equal(await gruppoSchede(app.page).getByRole('button', { name: 'Sposta Spesa su' }).isDisabled(), true);
+
+  await app.page.evaluate(() => { window.__lettureGuaste = 0; });
+  await app.vai('#/');
+  assert.deepEqual(await schedeDashboard(app.page), ['spesa', 'meteo', 'agenda', 'attivita', 'casa', 'foto']);
+});

@@ -292,16 +292,17 @@
   }
 
   function salvaOrdine(griglia, mostrate) {
+    var prima = disegnate.map(function (v) { return v.def.id; });
     // Le schede che oggi sono fuori dalla griglia restano attaccate a quella che le precede (stessa regola del salvataggio).
-    var definizioni = disegnate.map(function (v) { return v.def; });
-    ordina(griglia, CasaNostra.impostazioni.ordineConMostrate(definizioni,
-      { ordineSchede: definizioni.map(function (d) { return d.id; }) }, mostrate));
-    return CasaNostra.impostazioni.cambiaOrdineSchede(function (attuali) {
-      return CasaNostra.impostazioni.ordineConMostrate(ui.schede(), attuali, mostrate);
-    }, function (salvate) {
-      // A coda vuota la griglia mostra l'ordine salvato davvero: se il salvataggio è fallito, quello di prima.
+    ordina(griglia, CasaNostra.impostazioni.ordineConMostrate(disegnate.map(function (v) { return v.def; }),
+      { ordineSchede: prima }, mostrate));
+    return CasaNostra.impostazioni.cambiaOrdineSchede(function (ordineSchede) {
+      return CasaNostra.impostazioni.ordineConMostrate(ui.schede(), { ordineSchede: ordineSchede }, mostrate);
+    }, function (salvato) {
+      // A coda vuota la griglia mostra l'ordine salvato davvero (se non si legge, quello di prima del gesto).
       if (disegnate.length && disegnate[0].griglia === griglia) {
-        ordina(griglia, CasaNostra.impostazioni.ordineEffettivo(ui.schede(), salvate).map(function (d) { return d.id; }));
+        ordina(griglia, salvato ? CasaNostra.impostazioni.ordineEffettivo(ui.schede(), { ordineSchede: salvato })
+          .map(function (d) { return d.id; }) : prima);
       }
     }).catch(function (err) {
       CasaNostra.errori.gestisci(err, 'ordine delle schede');

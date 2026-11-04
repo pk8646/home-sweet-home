@@ -8,7 +8,7 @@
  *   CasaNostra.impostazioni.ordineEffettivo(schede, impostazioni) -> le definizioni delle schede nell'ordine delle schede
  *   CasaNostra.impostazioni.idSpostabili(schede, impostazioni)    -> gli id delle schede spostabili nell'ordine delle schede
  *   CasaNostra.impostazioni.ordineConMostrate(schede, impostazioni, mostrate) -> ordine completo da salvare dopo un riordino
- *   CasaNostra.impostazioni.cambiaOrdineSchede(calcola, mostra) -> Promise: salva in coda un nuovo ordine delle schede
+ *   CasaNostra.impostazioni.cambiaOrdineSchede(calcola, mostra) -> Promise: salva in coda un nuovo ordineSchede
  *
  * schedeVisibili: { idScheda: false } nasconde una scheda della dashboard; un id assente = visibile.
  * ordineSchede: [idScheda, ...] è l'ordine delle schede scelto dalla famiglia; vuoto = ordine predefinito.
@@ -120,27 +120,26 @@
   }
 
   var ordiniInAttesa = 0;
-  var ultimeSalvate = null; // le impostazioni nel database dopo l'ultimo cambio d'ordine finito
 
   /**
-   * Salva in coda un nuovo ordine delle schede: calcola(impostazioni attuali) -> ordineSchede, eseguita al proprio
-   * turno (vede i salvataggi precedenti). Quando non resta nessun cambio d'ordine in coda, mostra(impostazioni) riceve
-   * subito le impostazioni salvate davvero: se un salvataggio è fallito, chi chiama rimette sullo schermo l'ordine
-   * di prima. La Promise restituita rifiuta se il salvataggio fallisce.
+   * Salva in coda un nuovo ordine delle schede: calcola(ordineSchede attuale) -> nuovo ordineSchede, eseguita al
+   * proprio turno (vede i salvataggi precedenti). Quando non resta nessun cambio d'ordine in coda, mostra(ordineSchede)
+   * riceve l'ordine riletto dal database, quello salvato davvero (dopo un errore, quello rimasto); se anche la
+   * rilettura fallisce riceve null e chi chiama rimette l'ordine che conosceva prima del gesto.
+   * La Promise restituita rifiuta se il salvataggio fallisce.
    */
   function cambiaOrdineSchede(calcola, mostra) {
     ordiniInAttesa++;
-    var prima = null;
-    var dopo = null;
-    function fine(salvate) {
-      if (salvate) ultimeSalvate = salvate;
-      if (--ordiniInAttesa === 0 && ultimeSalvate) mostra(copia(ultimeSalvate));
+    function fine() {
+      if (--ordiniInAttesa > 0) return;
+      leggi().then(function (imp) { return imp.ordineSchede; }, function () { return null; }).then(function (ordine) {
+        // Un cambio arrivato durante la rilettura mostrerà l'ordine quando finisce: niente ordine vecchio per un attimo.
+        if (ordiniInAttesa === 0) mostra(ordine);
+      }).catch(function (err) { CasaNostra.errori.gestisci(err, 'ordine delle schede'); });
     }
     return aggiorna(function (attuali) {
-      prima = attuali;
-      dopo = completa(Object.assign(copia(attuali), { ordineSchede: calcola(copia(attuali)) }));
-      return { ordineSchede: dopo.ordineSchede };
-    }).then(function () { fine(dopo); }, function (err) { fine(prima); throw err; });
+      return { ordineSchede: calcola(attuali.ordineSchede) };
+    }).then(fine, function (err) { fine(); throw err; });
   }
 
   CasaNostra.impostazioni = {

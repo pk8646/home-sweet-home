@@ -180,14 +180,16 @@
 
         /*
          * calcola(ordine) -> nuovo ordine. Lo schermo cambia subito; il salvataggio è in coda e applica la stessa
-         * modifica all'ordine salvato. Quando la coda si svuota lo schermo mostra l'ordine salvato davvero.
+         * modifica all'ordine salvato. Quando la coda si svuota lo schermo mostra l'ordine salvato
+         * davvero (se non si riesce a leggerlo, quello di prima del gesto).
          */
         function cambiaOrdine(calcola) {
-          mostra(ordineSpostabili(calcola(ordineSulloSchermo())));
-          return CasaNostra.impostazioni.cambiaOrdineSchede(function (attuali) {
-            return calcola(ordineSpostabili(attuali.ordineSchede));
-          }, function (salvate) {
-            mostra(ordineSpostabili(salvate.ordineSchede));
+          var prima = ordineSulloSchermo();
+          mostra(ordineSpostabili(calcola(prima)));
+          return CasaNostra.impostazioni.cambiaOrdineSchede(function (ordineSchede) {
+            return calcola(ordineSpostabili(ordineSchede));
+          }, function (salvato) {
+            mostra(salvato ? ordineSpostabili(salvato) : prima);
           });
         }
 
