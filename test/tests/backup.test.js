@@ -2,6 +2,7 @@
 // Backup dati, promemoria di backup e ripristino iniziale (ticket #11).
 const { test, assert, attendi, oraRoma } = require('../lib/test');
 const { senzaBenvenuto } = require('../lib/benvenuto');
+const { meteoFinto } = require('../lib/meteo-finto');
 
 const STRUTTURATE = ['prodotti', 'appuntamenti', 'attivita', 'promemoriaCasa', 'impostazioni'];
 
@@ -68,6 +69,7 @@ function istantanea(page) {
 function gruppoBackup(page) { return page.getByRole('region', { name: 'Backup dati' }); }
 function gruppoRipristino(page) { return page.getByRole('region', { name: 'Ripristino iniziale' }); }
 function avvisoBackup(page) { return page.getByRole('region', { name: 'Promemoria backup' }); }
+function gruppoSchede(page) { return page.getByRole('region', { name: 'Schede della dashboard' }); }
 
 function esporta(app) {
   return app.scaricamento(() => gruppoBackup(app.page).getByRole('button', { name: 'Esporta il backup dati' }).click());
@@ -183,6 +185,53 @@ test('importare un backup non modifica le foto', async ({ apri }) => {
   assert.deepEqual((await istantanea(app.page)).foto, prima.foto);
 });
 
+// ---------- ordine delle schede (#19) ----------
+
+/** Gli id delle schede nella dashboard, dall'alto in basso, senza il promemoria di backup (compare o no secondo i dati). */
+function schedeDashboard(page) {
+  return page.locator('.dashboard-griglia > section[data-scheda]').evaluateAll((s) => s.map((n) => n.getAttribute('data-scheda'))
+    .filter((id) => id !== 'avviso-backup'));
+}
+
+async function importa(app, file) {
+  await app.vai('#/impostazioni');
+  await scegliBackup(app, file);
+  await app.page.getByRole('dialog').getByRole('button', { name: 'Importa' }).click();
+  await attendi(async () => assert.equal(await app.page.getByRole('dialog').count(), 0));
+  await app.vai('#/');
+  return schedeDashboard(app.page);
+}
+
+test('l\'ordine delle schede entra nel backup, torna col ripristino e senza il campo vale l\'ordine predefinito', async ({ apri }) => {
+  const app = await apri({ percorso: '#/impostazioni', rete: [meteoFinto()], scriptIniziale: senzaBenvenuto });
+  const dati = datiDiProva();
+  dati.impostazioni[0].schedeVisibili = {};
+  dati.impostazioni[0].ordineSchede = ['casa', 'spesa'];
+  await semina(app, dati);
+  const dl = await esporta(app);
+  assert.deepEqual(JSON.parse(dl.testo).dati.impostazioni[0].ordineSchede, ['casa', 'spesa']);
+
+  const predefinito = ['meteo', 'agenda', 'attivita', 'spesa', 'casa', 'foto'];
+  await gruppoSchede(app.page).getByRole('button', { name: 'Ripristina ordine predefinito' }).click();
+  await app.vai('#/');
+  assert.deepEqual(await schedeDashboard(app.page), predefinito);
+
+  assert.deepEqual(await importa(app, fileJson(dl.testo, dl.nome)), ['casa', 'spesa', 'meteo', 'agenda', 'attivita', 'foto']);
+  const senzaCampo = backupValido((b) => { b.dati.impostazioni[0].schedeVisibili = {}; });
+  assert.equal('ordineSchede' in senzaCampo.dati.impostazioni[0], false);
+  assert.deepEqual(await importa(app, fileJson(senzaCampo)), predefinito);
+  // Id sconosciuti, ripetuti o di schede fisse non rendono il backup non valido: vengono ignorati.
+  const strano = backupValido((b) => {
+    b.dati.impostazioni[0].schedeVisibili = {};
+    b.dati.impostazioni[0].ordineSchede = ['foto', 'sconosciuta', 'foto', 'avviso-backup', 'agenda'];
+  });
+  assert.deepEqual(await importa(app, fileJson(strano)), ['foto', 'agenda', 'meteo', 'attivita', 'spesa', 'casa']);
+
+  await app.vai('#/impostazioni');
+  await ripristina(app);
+  assert.deepEqual(await schedeDashboard(app.page), ['benvenuto'].concat(predefinito));
+});
+
 // ---------- file non validi: rifiutati senza toccare i dati ----------
 
 const NON_VALIDI = [
@@ -197,7 +246,11 @@ const NON_VALIDI = [
   ['data non valida', () => backupValido((b) => { b.dati.appuntamenti[2].data = '2026-02-30'; }),
     /«Appuntamenti», elemento 3 \(id «a3»\): il campo «data» non è una data valida/],
   ['id duplicati', () => backupValido((b) => { b.dati.promemoriaCasa[1].id = 'c1'; }),
-    /«Promemoria casa», elemento 2 \(id «c1»\): l'identificativo è già usato dall'elemento 1/]
+    /«Promemoria casa», elemento 2 \(id «c1»\): l'identificativo è già usato dall'elemento 1/],
+  ['ordine delle schede che non è un elenco', () => backupValido((b) => { b.dati.impostazioni[0].ordineSchede = 'spesa,meteo'; }),
+    /«Impostazioni», elemento 1 \(id «impostazioni»\): il campo «ordineSchede» deve essere un elenco di testi/],
+  ['ordine delle schede con un elemento che non è un testo', () => backupValido((b) => { b.dati.impostazioni[0].ordineSchede = ['spesa', 3]; }),
+    /«Impostazioni», elemento 1 \(id «impostazioni»\): il campo «ordineSchede» deve essere un elenco di testi/]
 ];
 
 for (const [nome, crea, messaggio] of NON_VALIDI) {

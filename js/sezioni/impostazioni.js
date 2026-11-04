@@ -83,45 +83,120 @@
     }
   });
 
-  // ---------- gruppo "Schede della dashboard": un interruttore per ogni scheda nascondibile ----------
+  // ---------- gruppo "Schede della dashboard": visibilità e ordine delle schede spostabili ----------
 
-  var codaSchede = Promise.resolve();
+  /** Funzione che, dato un ordine, restituisce l'ordine con la scheda idScheda scambiata con la vicina (passo -1 o +1). */
+  function scambio(idScheda, passo) {
+    return function (ordine) {
+      var o = ordine.slice();
+      var i = o.indexOf(idScheda);
+      var j = i + passo;
+      if (i < 0 || j < 0 || j >= o.length) return o;
+      o[i] = o[j];
+      o[j] = idScheda;
+      return o;
+    };
+  }
+
+  function rigaScheda(def, imp, sposta) {
+    var id = 'impostazioni-scheda-' + def.id;
+    var casella = ui.el('input', { id: id, type: 'checkbox', class: 'casella', checked: CasaNostra.impostazioni.schedaVisibile(imp, def.id) });
+    casella.addEventListener('change', CasaNostra.errori.protetta(function () {
+      var visibile = casella.checked;
+      casella.disabled = true;
+      // aggiorna() è in coda: due interruttori toccati in rapida successione non si sovrascrivono a vicenda.
+      return CasaNostra.impostazioni.aggiorna(function (attuali) {
+        var mappa = Object.assign({}, attuali.schedeVisibili);
+        if (visibile) delete mappa[def.id]; else mappa[def.id] = false;
+        return { schedeVisibili: mappa };
+      }).catch(function (err) {
+        casella.checked = !visibile;
+        throw err;
+      }).then(function () { casella.disabled = false; }, function (err) { casella.disabled = false; throw err; });
+    }, 'visibilità della scheda ' + def.id));
+
+    // ▲ sulla prima riga e ▼ sull'ultima sono disattivati con aria-disabled (non disabled): il pulsante appena
+    // premuto tiene il focus anche quando la scheda arriva al bordo.
+    function pulsante(passo, simbolo, verso) {
+      var p = ui.el('button', {
+        type: 'button', class: 'pulsante-icona impostazioni-sposta', 'aria-label': 'Sposta ' + def.titolo + ' ' + verso, testo: simbolo
+      });
+      p.addEventListener('click', CasaNostra.errori.protetta(function () {
+        if (p.getAttribute('aria-disabled') === 'true') return;
+        return sposta(scambio(def.id, passo));
+      }, 'ordine delle schede'));
+      return p;
+    }
+
+    return ui.el('li', { class: 'impostazioni-scheda', 'data-scheda': def.id }, [
+      ui.el('label', { class: 'impostazioni-interruttore', for: id }, [
+        casella,
+        ui.el('span', { 'aria-hidden': 'true', testo: def.icona || '' }),
+        ui.el('span', { testo: def.titolo })
+      ]),
+      ui.el('span', { class: 'impostazioni-sposta-pulsanti' }, [pulsante(-1, '▲', 'su'), pulsante(1, '▼', 'giù')])
+    ]);
+  }
 
   ui.registraGruppoImpostazioni({
     id: 'dashboard', titolo: 'Schede della dashboard', ordine: 30,
     disegna: function (corpo) {
-      var schede = ui.schede().filter(function (def) { return def.nascondibile !== false; });
-      if (!schede.length) {
+      if (!CasaNostra.impostazioni.idSpostabili(ui.schede(), []).length) {
         corpo.appendChild(ui.el('p', { class: 'vuoto', testo: 'Nessuna scheda da configurare.' }));
         return;
       }
       return CasaNostra.impostazioni.leggi().then(function (imp) {
-        corpo.appendChild(ui.el('p', { class: 'aiuto', testo: 'Data e ora restano sempre visibili. Le sezioni nascoste restano raggiungibili dalla navigazione.' }));
-        corpo.appendChild(ui.el('ul', { class: 'impostazioni-schede' }, schede.map(function (def) {
-          var id = 'impostazioni-scheda-' + def.id;
-          var casella = ui.el('input', { id: id, type: 'checkbox', class: 'casella', checked: CasaNostra.impostazioni.schedaVisibile(imp, def.id) });
-          casella.addEventListener('change', CasaNostra.errori.protetta(function () {
-            var visibile = casella.checked;
-            casella.disabled = true;
-            // In coda: due interruttori toccati in rapida successione non si sovrascrivono a vicenda.
-            codaSchede = codaSchede.catch(function () {}).then(function () {
-              return CasaNostra.impostazioni.leggi();
-            }).then(function (attuali) {
-              var mappa = Object.assign({}, attuali.schedeVisibili);
-              if (visibile) delete mappa[def.id]; else mappa[def.id] = false;
-              return CasaNostra.impostazioni.aggiorna({ schedeVisibili: mappa });
-            });
-            return codaSchede.catch(function (err) {
-              casella.checked = !visibile;
-              throw err;
-            }).then(function () { casella.disabled = false; }, function (err) { casella.disabled = false; throw err; });
-          }, 'visibilità della scheda ' + def.id));
-          return ui.el('li', {}, ui.el('label', { class: 'impostazioni-interruttore', for: id }, [
-            casella,
-            ui.el('span', { 'aria-hidden': 'true', testo: def.icona || '' }),
-            ui.el('span', { testo: def.titolo })
-          ]));
-        })));
+        var definizioni = {};
+        ui.schede().forEach(function (def) { definizioni[def.id] = def; });
+        var righe = {};
+        var ordineSalvato = CasaNostra.impostazioni.idSpostabili(ui.schede(), imp.ordineSchede);
+        var elenco = ui.el('ul', { class: 'impostazioni-schede' }, ordineSalvato.map(function (idScheda) {
+          righe[idScheda] = rigaScheda(definizioni[idScheda], imp, cambiaOrdine);
+          return righe[idScheda];
+        }));
+
+        function ordineSulloSchermo() {
+          return Array.prototype.map.call(elenco.children, function (li) { return li.getAttribute('data-scheda'); });
+        }
+
+        /** Mette le righe nell'ordine dato; il pulsante che aveva il focus lo riprende. */
+        function mostra(ordine) {
+          var attivo = document.activeElement;
+          ordine.forEach(function (idScheda, i) {
+            if (elenco.children[i] !== righe[idScheda]) elenco.insertBefore(righe[idScheda], elenco.children[i] || null);
+          });
+          if (attivo && attivo !== document.activeElement && elenco.contains(attivo)) attivo.focus();
+          ordine.forEach(function (idScheda, i) {
+            var pulsanti = righe[idScheda].querySelectorAll('.impostazioni-sposta');
+            pulsanti[0].setAttribute('aria-disabled', String(i === 0));
+            pulsanti[1].setAttribute('aria-disabled', String(i === ordine.length - 1));
+          });
+        }
+
+        /*
+         * calcola(ordine) -> nuovo ordine. Lo schermo cambia subito; il salvataggio è in coda e applica la stessa
+         * modifica all'ordine salvato. Quando la coda si svuota lo schermo mostra l'ordine salvato
+         * davvero (se non si riesce a leggerlo, quello di prima del gesto).
+         */
+        function cambiaOrdine(calcola) {
+          var prima = ordineSulloSchermo();
+          mostra(CasaNostra.impostazioni.idSpostabili(ui.schede(), calcola(prima)));
+          return CasaNostra.impostazioni.cambiaOrdineSchede(function (ordineSchede) {
+            return calcola(CasaNostra.impostazioni.idSpostabili(ui.schede(), ordineSchede));
+          }, function (salvato) {
+            mostra(salvato ? CasaNostra.impostazioni.idSpostabili(ui.schede(), salvato) : prima);
+          });
+        }
+
+        mostra(ordineSalvato);
+        corpo.appendChild(ui.el('p', { class: 'aiuto', testo: 'Data e ora restano sempre visibili. Le sezioni nascoste restano raggiungibili dalla navigazione. Con ▲ e ▼ scegli l\'ordine delle schede.' }));
+        corpo.appendChild(elenco);
+        corpo.appendChild(ui.el('button', {
+          type: 'button', class: 'pulsante pulsante-secondario impostazioni-ripristina-ordine', testo: 'Ripristina ordine predefinito',
+          on: { click: CasaNostra.errori.protetta(function () {
+            return cambiaOrdine(function () { return []; });
+          }, 'ripristino dell\'ordine delle schede') }
+        }));
       });
     }
   });

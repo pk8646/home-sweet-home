@@ -31,6 +31,27 @@ CasaNostra.ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località de
   Ordini gruppi impostazioni: generali 10, località 20, dashboard 30, schermo 40, backup 60, archivio 70, privacy 80, ripristino 90.
 - La dashboard disegna ogni scheda in isolamento (errore -> messaggio nella scheda) e salta quelle con
   `impostazioni.schedeVisibili[id] === false` (salvo `nascondibile:false`). `CasaNostra.ui.schede()` elenca le schede (per i toggle).
+  Ordine delle schede (#19): `CasaNostra.impostazioni.ordineEffettivo(ui.schede(), ordineSchede)` dà le schede nell'ordine
+  da mostrare (fisse in cima, poi gli id validi di `ordineSchede`, poi le mancanti nell'ordine predefinito);
+  `impostazioni.spostabile(def)` dice se una scheda non è fissa, `impostazioni.idSpostabili(schede, ordineSchede)` dà gli
+  id delle spostabili in ordine. Le funzioni d'ordine prendono l'array `ordineSchede`, non il record delle impostazioni.
+  Per cambiarlo: `impostazioni.cambiaOrdineSchede(calcola(ordineSchede) -> ordineSchede, mostra(ordineSchede | null))`
+  (in coda; a coda vuota `mostra` riceve l'ordine riletto dal database, così dopo un errore lo schermo torna all'ordine
+  salvato; `null` se anche la rilettura fallisce: chi chiama rimette l'ordine di prima del gesto) e
+  `impostazioni.ordineConMostrate(schede, ordineSchede, idMostrate)` (ordine completo con le nascoste attaccate alla precedente).
+  Trascinamento (#20, in `js/sezioni/dashboard.js`): Pointer Events sul titolo `.scheda-titolo-spostabile`, cattura
+  sulla griglia, pressione di 400 ms (setTimeout: nei test `apri({ ora, oraFissa: true })` + `app.avanzaOra(450)`),
+  classi `.scheda-sollevata` e `.scheda-segnaposto`; le schede fisse hanno `data-fissa`.
+  Tocco e scorrimento automatico (#21): il titolo ha `touch-action: manipulation` (il dito scorre la pagina finché la
+  scheda non si solleva); dopo, un `touchmove` non passivo annullato impedisce lo scorrimento (altrimenti Chromium
+  manda `pointercancel`). Entro 60 px dal bordo alto/basso un ciclo `requestAnimationFrame`, attivo solo durante il
+  trascinamento, scorre la pagina a 600 px/s; un rilascio in queste fasce conferma il segnaposto anche se è fuori
+  dalla griglia (altrove fuori dalla griglia annulla). L'orologio finto di Playwright controlla anche `requestAnimationFrame`:
+  con `oraFissa` i fotogrammi avanzano solo con `app.avanzaOra(ms)` (circa uno ogni 16 ms).
+  Tocco vero nei test: `page.touchscreen` fa solo tap; si usa `Input.dispatchTouchEvent` su una sessione CDP
+  (`app.contesto.newCDPSession(app.page)`, helper `dito(app)` in `tests/trascina-schede.test.js`) in un viewport con
+  touch (tutti tranne `desktop`: per i test sul tocco forzare `viewport: 'smartphone'`). Chrome sul computer non genera
+  `contextmenu` da una pressione lunga via CDP.
 - Una sezione segnaposto `ui.registraSezione` va sostituita, non duplicata (stesso id = sovrascrive).
 - Pagina Impostazioni (`js/sezioni/impostazioni.js`) già compone i gruppi registrati, ciascuno in isolamento.
 
@@ -57,8 +78,9 @@ CasaNostra.ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località de
   Al primo `put`/`replaceAll` della sessione `db.js` chiama `navigator.storage.persist()` (feature check, una volta).
 - Promemoria casa: `{ id, titolo, categoria, data, note, intervalloGiorni, completato, ultimoCompletamento, creatoIl }` (campo `intervalloGiorni`, come nella spec).
 - LocalStorage: una sola chiave, `casaNostra.meteo.copia` = `{ salvataIl, localita, dati, ultimaRichiesta }` (l'orario dell'ultima richiesta sta nel record, non in una chiave a parte).
-- Impostazioni: `CasaNostra.impostazioni.leggi()` / `aggiorna({...})`, campi predefiniti: nomeVisualizzato, localita {nome, latitudine,
-  longitudine} (Fiumicino), schedeVisibili {}, schermoAcceso, ultimoBackup, benvenutoVisto, avvisoBackupPosticipatoFino.
+- Impostazioni: `CasaNostra.impostazioni.leggi()` / `aggiorna({...})` (in coda; accetta anche `function (attuali) { return {...}; }`,
+  e `leggi()` aspetta gli aggiornamenti in coda), campi predefiniti: nomeVisualizzato, localita {nome, latitudine,
+  longitudine} (Fiumicino), schedeVisibili {}, ordineSchede [], schermoAcceso, ultimoBackup, benvenutoVisto, avvisoBackupPosticipatoFino.
 
 ## Test (nel repo, cartella `test/`, ADR-0003; prima volta: `npm install` dentro `test/`)
 ```

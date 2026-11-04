@@ -233,7 +233,8 @@ textarea.campo { resize: vertical; }
   .riga-aggiunta > * + *, .foto-barra > * + *, .appuntamento-azioni > * + *, .voce-appuntamento > * + *,
   .voce-prodotto > * + *, .prodotto > * + *, .voce-attivita > * + *, .attivita > * + *,
   .impostazioni-interruttore > * + *, .dialogo-riga-casella > * + *, .toast > * + *, .foto-vista-testa > * + *,
-  .pulsante > * + *, .meteo-attuale > * + *, .meteo-fondo > * + * {
+  .pulsante > * + *, .meteo-attuale > * + *, .meteo-fondo > * + *, .impostazioni-scheda > * + *,
+  .impostazioni-sposta-pulsanti > * + * {
     margin-left: 10px;
   }
   /* colonne */
