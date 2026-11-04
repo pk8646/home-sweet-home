@@ -67,7 +67,7 @@
 
   /*
    * Tipi dei campi: 'testo' (non vuoto), 'booleano', 'data' (AAAA-MM-GG), 'istante' (data e ora ISO), 'ora' (HH:MM),
-   * 'intero' (> 0), 'categoria', 'localita', 'oggetto'. Il suffisso '?' rende il campo facoltativo (assente o null;
+   * 'intero' (> 0), 'categoria', 'localita', 'oggetto', 'testi' (elenco di testi, anche vuoto). Il suffisso '?' rende il campo facoltativo (assente o null;
    * per testo, data e ora anche la stringa vuota). I campi non elencati vengono conservati così come sono.
    */
   var CAMPI = {
@@ -79,7 +79,7 @@
       completato: 'booleano', ultimoCompletamento: 'data?', creatoIl: 'istante?'
     },
     impostazioni: {
-      nomeVisualizzato: 'testo?', localita: 'localita?', schedeVisibili: 'oggetto?', schermoAcceso: 'booleano?',
+      nomeVisualizzato: 'testo?', localita: 'localita?', schedeVisibili: 'oggetto?', ordineSchede: 'testi?', schermoAcceso: 'booleano?',
       ultimoBackup: 'istante?', benvenutoVisto: 'booleano?', avvisoBackupPosticipatoFino: 'data?'
     }
   };
@@ -95,7 +95,8 @@
     intero: 'deve essere un numero intero maggiore di zero',
     categoria: 'non è una categoria valida',
     localita: 'deve avere nome, latitudine e longitudine',
-    oggetto: 'deve essere un oggetto'
+    oggetto: 'deve essere un oggetto',
+    testi: 'deve essere un elenco di testi'
   };
 
   var RE_ISTANTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
@@ -118,6 +119,7 @@
       case 'localita': return eOggetto(v) && typeof v.nome === 'string' &&
         typeof v.latitudine === 'number' && isFinite(v.latitudine) && typeof v.longitudine === 'number' && isFinite(v.longitudine);
       case 'oggetto': return eOggetto(v);
+      case 'testi': return Array.isArray(v) && v.every(function (x) { return typeof x === 'string'; });
     }
     return false;
   }
