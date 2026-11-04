@@ -6,6 +6,9 @@
  *   CasaNostra.impostazioni.PREDEFINITE           -> valori predefiniti
  *
  *   CasaNostra.impostazioni.ordineEffettivo(schede, impostazioni) -> le definizioni delle schede nell'ordine delle schede
+ *   CasaNostra.impostazioni.idSpostabili(schede, impostazioni)    -> gli id delle schede spostabili nell'ordine delle schede
+ *   CasaNostra.impostazioni.ordineConMostrate(schede, impostazioni, mostrate) -> ordine completo da salvare dopo un riordino
+ *   CasaNostra.impostazioni.cambiaOrdineSchede(calcola, mostra) -> Promise: salva in coda un nuovo ordine delle schede
  *
  * schedeVisibili: { idScheda: false } nasconde una scheda della dashboard; un id assente = visibile.
  * ordineSchede: [idScheda, ...] è l'ordine delle schede scelto dalla famiglia; vuoto = ordine predefinito.
@@ -86,6 +89,55 @@
     return fisse.concat(scelte, restanti);
   }
 
+  /** Gli id delle schede spostabili (non fisse) nell'ordine delle schede. */
+  function idSpostabili(schede, impostazioni) {
+    return ordineEffettivo(schede, impostazioni)
+      .filter(function (def) { return def.nascondibile !== false; })
+      .map(function (def) { return def.id; });
+  }
+
+  /**
+   * L'ordine completo delle schede spostabili (id, nascoste comprese) dopo che le schede `mostrate` (id) sono
+   * state messe in quest'ordine. Ogni scheda non mostrata resta attaccata alla scheda mostrata che la precede
+   * nell'ordine attuale; quelle prima della prima scheda mostrata restano in testa. Id ignoti o fissi sono ignorati.
+   */
+  function ordineConMostrate(schede, impostazioni, mostrate) {
+    var attuale = idSpostabili(schede, impostazioni);
+    var mostrata = {};
+    mostrate.forEach(function (id) { mostrata[id] = true; });
+    var testa = [];
+    var gruppi = {};
+    var gruppo = testa;
+    attuale.forEach(function (id) {
+      if (mostrata[id] === true) gruppo = gruppi[id] = [];
+      gruppo.push(id);
+    });
+    var risultato = testa;
+    mostrate.forEach(function (id) {
+      if (gruppi[id]) { risultato = risultato.concat(gruppi[id]); delete gruppi[id]; }
+    });
+    return risultato;
+  }
+
+  var ordiniInAttesa = 0;
+
+  /**
+   * Salva in coda un nuovo ordine delle schede: calcola(impostazioni attuali) -> ordineSchede, eseguita al proprio
+   * turno (vede i salvataggi precedenti). Quando non resta nessun cambio d'ordine in coda, mostra(impostazioni) riceve
+   * le impostazioni salvate davvero: se un salvataggio è fallito, chi chiama rimette sullo schermo l'ordine di prima.
+   * La Promise restituita rifiuta se il salvataggio fallisce.
+   */
+  function cambiaOrdineSchede(calcola, mostra) {
+    ordiniInAttesa++;
+    function fine() {
+      if (--ordiniInAttesa > 0) return;
+      leggi().then(mostra).catch(function (err) { CasaNostra.errori.registra(err, 'lettura dell\'ordine delle schede'); });
+    }
+    return aggiorna(function (attuali) {
+      return { ordineSchede: calcola(attuali) };
+    }).then(fine, function (err) { fine(); throw err; });
+  }
+
   CasaNostra.impostazioni = {
     ID: ID,
     PREDEFINITE: PREDEFINITE,
@@ -93,6 +145,9 @@
     leggi: leggi,
     aggiorna: aggiorna,
     schedaVisibile: schedaVisibile,
-    ordineEffettivo: ordineEffettivo
+    ordineEffettivo: ordineEffettivo,
+    idSpostabili: idSpostabili,
+    ordineConMostrate: ordineConMostrate,
+    cambiaOrdineSchede: cambiaOrdineSchede
   };
 })(window.CasaNostra);

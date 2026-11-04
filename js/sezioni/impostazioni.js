@@ -87,9 +87,7 @@
 
   /** Gli id delle schede spostabili (non fisse) nell'ordine delle schede dato da ordineSchede. */
   function ordineSpostabili(ordineSchede) {
-    return CasaNostra.impostazioni.ordineEffettivo(ui.schede(), { ordineSchede: ordineSchede })
-      .filter(function (def) { return def.nascondibile !== false; })
-      .map(function (def) { return def.id; });
+    return CasaNostra.impostazioni.idSpostabili(ui.schede(), { ordineSchede: ordineSchede });
   }
 
   /** Funzione che, dato un ordine, restituisce l'ordine con la scheda idScheda scambiata con la vicina (passo -1 o +1). */
@@ -157,7 +155,6 @@
         ui.schede().forEach(function (def) { definizioni[def.id] = def; });
         var righe = {};
         var ordineSalvato = ordineSpostabili(imp.ordineSchede);
-        var inAttesa = 0;
         var elenco = ui.el('ul', { class: 'impostazioni-schede' }, ordineSalvato.map(function (idScheda) {
           righe[idScheda] = rigaScheda(definizioni[idScheda], imp, cambiaOrdine);
           return righe[idScheda];
@@ -183,23 +180,14 @@
 
         /*
          * calcola(ordine) -> nuovo ordine. Lo schermo cambia subito; il salvataggio è in coda e applica la stessa
-         * modifica all'ordine salvato. Quando la coda si svuota lo schermo mostra l'ordine salvato davvero: se un
-         * salvataggio è fallito, torna quello di prima.
+         * modifica all'ordine salvato. Quando la coda si svuota lo schermo mostra l'ordine salvato davvero.
          */
         function cambiaOrdine(calcola) {
           mostra(ordineSpostabili(calcola(ordineSulloSchermo())));
-          inAttesa++;
-          var nuovo;
-          return CasaNostra.impostazioni.aggiorna(function (attuali) {
-            nuovo = calcola(ordineSpostabili(attuali.ordineSchede));
-            return { ordineSchede: nuovo };
-          }).then(function () {
-            ordineSalvato = ordineSpostabili(nuovo);
-          }).then(function () {
-            if (--inAttesa === 0) mostra(ordineSalvato);
-          }, function (err) {
-            if (--inAttesa === 0) mostra(ordineSalvato);
-            throw err;
+          return CasaNostra.impostazioni.cambiaOrdineSchede(function (attuali) {
+            return calcola(ordineSpostabili(attuali.ordineSchede));
+          }, function (salvate) {
+            mostra(ordineSpostabili(salvate.ordineSchede));
           });
         }
 

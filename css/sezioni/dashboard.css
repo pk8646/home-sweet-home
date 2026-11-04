@@ -10,3 +10,31 @@
 @media (orientation: landscape) and (min-width: 700px) {
   .dashboard-griglia { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 }
+
+/* Trascinamento delle schede (ticket #20): maniglia, scheda sollevata, segnaposto. Niente animazioni. */
+
+.scheda-titolo-spostabile {
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.scheda-maniglia {
+  margin-left: 8px;
+  color: var(--testo-tenue);
+  font-weight: normal;
+}
+
+.scheda-sollevata {
+  position: fixed;
+  z-index: 30;
+  margin: 0;
+  opacity: 0.85;
+  box-shadow: 0 12px 28px rgba(70, 45, 20, 0.28), 0 4px 8px rgba(70, 45, 20, 0.16);
+  pointer-events: none;
+}
+
+.scheda-segnaposto {
+  border: 2px dashed var(--bordo);
+  border-radius: var(--raggio);
+}

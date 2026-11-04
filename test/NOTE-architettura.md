@@ -33,6 +33,12 @@ CasaNostra.ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località de
   `impostazioni.schedeVisibili[id] === false` (salvo `nascondibile:false`). `CasaNostra.ui.schede()` elenca le schede (per i toggle).
   Ordine delle schede (#19): `CasaNostra.impostazioni.ordineEffettivo(ui.schede(), impostazioni)` dà le schede nell'ordine
   da mostrare (fisse in cima, poi gli id validi di `ordineSchede`, poi le mancanti nell'ordine predefinito).
+  Per cambiarlo: `impostazioni.cambiaOrdineSchede(calcola(attuali) -> ordineSchede, mostra(salvate))` (in coda; a coda
+  vuota `mostra` riceve l'ordine salvato davvero, così dopo un errore lo schermo torna a prima) e
+  `impostazioni.ordineConMostrate(schede, imp, idMostrate)` (ordine completo con le nascoste attaccate alla precedente).
+  Trascinamento (#20, in `js/sezioni/dashboard.js`): Pointer Events sul titolo `.scheda-titolo-spostabile`, cattura
+  sulla griglia, pressione di 400 ms (setTimeout: nei test `apri({ ora, oraFissa: true })` + `app.avanzaOra(450)`),
+  classi `.scheda-sollevata` e `.scheda-segnaposto`; le schede fisse hanno `data-fissa`.
 - Una sezione segnaposto `ui.registraSezione` va sostituita, non duplicata (stesso id = sovrascrive).
 - Pagina Impostazioni (`js/sezioni/impostazioni.js`) già compone i gruppi registrati, ciascuno in isolamento.
 
