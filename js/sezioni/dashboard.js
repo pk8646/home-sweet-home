@@ -8,8 +8,8 @@
  * Trascinamento (ticket #20): tenendo premuto il titolo di una scheda spostabile per PRESSIONE_MS, senza muoversi
  * più di SOGLIA_PX, la scheda si solleva e segue il puntatore, e un segnaposto occupa il punto d'arrivo. Un solo
  * gestore a Pointer Events, con la stessa regola per mouse, dito e penna (niente HTML5 drag-and-drop). Il rilascio
- * dentro la griglia salva l'ordine con CasaNostra.impostazioni.cambiaOrdineSchede; il rilascio fuori dalla griglia,
- * Esc e pointercancel annullano. Il gesto sposta i riquadri: le schede non si ridisegnano.
+ * dentro la griglia o nelle fasce di scorrimento automatico salva l'ordine con CasaNostra.impostazioni.cambiaOrdineSchede;
+ * il rilascio fuori dalla griglia, Esc e pointercancel annullano. Il gesto sposta i riquadri: le schede non si ridisegnano.
  * Col dito (ticket #21) uno scorrimento che parte dal titolo resta uno scorrimento; a scheda sollevata la pagina non
  * scorre più sotto il dito e, col puntatore vicino al bordo della finestra, scorre da sola (scorri).
  */
@@ -148,7 +148,7 @@
   function scorri(istante) {
     var g = gesto;
     if (!g || !g.attivo) return;
-    var direzione = g.y < BORDO_PX ? -1 : (g.y > window.innerHeight - BORDO_PX ? 1 : 0);
+    var direzione = fasciaScorrimento(g);
     // Il primo fotogramma (e uno dopo una pausa lunga della pagina) non scorre: conta solo il tempo tra due fotogrammi vicini.
     var trascorso = g.istantePrima === undefined ? 0 : Math.min(istante - g.istantePrima, 100);
     g.istantePrima = istante;
@@ -158,6 +158,11 @@
       if (window.pageYOffset !== prima) spostaSegnaposto(g);
     }
     g.fotogramma = requestAnimationFrame(scorriProtetta);
+  }
+
+  /** -1 col puntatore nella fascia di scorrimento in alto (entro BORDO_PX dal bordo della finestra), 1 in basso, 0 altrove. */
+  function fasciaScorrimento(g) {
+    return g.y < BORDO_PX ? -1 : (g.y > window.innerHeight - BORDO_PX ? 1 : 0);
   }
 
   /** Col dito, a scheda sollevata la pagina non scorre più sotto il dito. */
@@ -217,7 +222,8 @@
     g.x = ev.clientX;
     g.y = ev.clientY;
     if (!g.attivo) return fine();
-    if (!dentroGriglia(g)) return annulla();
+    // Nelle fasce di scorrimento il rilascio conferma il segnaposto: a pagina in cima (o in fondo) la fascia sta fuori dalla griglia.
+    if (!dentroGriglia(g) && !fasciaScorrimento(g)) return annulla();
     spostaSegnaposto(g); // il rilascio può arrivare in un punto nuovo, senza un pointermove prima
     fine();
     var mostrate = idMostrati(g.griglia);

@@ -214,12 +214,13 @@ test('si salva l\'ordine completo: le schede nascoste restano attaccate alla sch
   assert.deepEqual(await schedeDashboard(app.page), ['attivita', 'spesa', 'meteo', 'agenda', 'casa']);
 });
 
-/** Un punto della finestra fuori dalla griglia della dashboard. */
+/** Un punto della finestra fuori dalla griglia della dashboard e fuori dalle fasce di scorrimento automatico (60 px). */
 async function fuoriDallaGriglia(page) {
   return page.locator('.dashboard-griglia').evaluate((g) => {
     const r = g.getBoundingClientRect();
-    if (r.top > 4) return { x: r.left + 10, y: r.top - 3 };
-    if (r.bottom < window.innerHeight - 4) return { x: r.left + 10, y: r.bottom + 3 };
+    const fascia = 60;
+    if (r.top - 3 > fascia) return { x: r.left + 10, y: r.top - 3 };
+    if (r.bottom + 3 < window.innerHeight - fascia) return { x: r.left + 10, y: r.bottom + 3 };
     return { x: r.left - 3, y: window.innerHeight / 2 };
   });
 }
@@ -468,9 +469,7 @@ test('vicino al bordo alto la pagina sale da sola a velocità fissa: con lo smar
   assert.equal(await scorrimento(app.page), 0, 'arriva in cima');
   // mentre la pagina scorre il segnaposto segue le schede che passano sotto il puntatore fermo
   assert.deepEqual(await figliGriglia(app.page), ['foto', 'scheda-segnaposto', 'meteo', 'agenda', 'attivita', 'spesa', 'casa']);
-  // si lascia la scheda sul segnaposto (in cima alla pagina il bordo alto è sopra la griglia)
-  const su = await puntoIn(app.page.locator('.scheda-segnaposto'));
-  await app.page.mouse.move(su.x, su.y);
+  // si lascia la scheda dove si trova, nella fascia dello scorrimento (in cima alla pagina è sopra la griglia)
   await app.page.mouse.up();
   assert.deepEqual(await schedeDashboard(app.page), ['foto', 'meteo', 'agenda', 'attivita', 'spesa', 'casa']);
 
@@ -480,6 +479,27 @@ test('vicino al bordo alto la pagina sale da sola a velocità fissa: con lo smar
   await salvataggiFiniti(app);
   await app.ricarica();
   assert.deepEqual(await schedeDashboard(app.page), ['foto', 'meteo', 'agenda', 'attivita', 'spesa', 'casa']);
+});
+
+test('col dito, il rilascio nella fascia dello scorrimento in cima alla pagina conferma la posizione del segnaposto', async ({ apri }) => {
+  const app = await apriDashboard(apri, { viewport: 'smartphone' });
+  await app.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const p = await puntoTitolo(app, 'foto');
+  const d = await dito(app);
+  await d.giu(p.x, p.y);
+  await app.avanzaOra(450);
+  assert.equal(await contaSegnaposto(app.page), 1);
+  await d.sposta(p.x, 30, 8);
+  await app.avanzaOra(10000);
+  assert.equal(await scorrimento(app.page), 0, 'arriva in cima');
+  const griglia = await app.page.locator('.dashboard-griglia').boundingBox();
+  assert.ok(griglia.y > 30, 'il dito è sopra la griglia');
+  await d.su();
+  const atteso = ['foto', 'meteo', 'agenda', 'attivita', 'spesa', 'casa'];
+  assert.deepEqual(await schedeDashboard(app.page), atteso);
+  await salvataggiFiniti(app);
+  await app.ricarica();
+  assert.deepEqual(await schedeDashboard(app.page), atteso);
 });
 
 test('vicino al bordo basso la pagina scende da sola', async ({ apri }) => {

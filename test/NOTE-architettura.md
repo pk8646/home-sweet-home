@@ -42,7 +42,8 @@ CasaNostra.ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località de
   Tocco e scorrimento automatico (#21): il titolo ha `touch-action: manipulation` (il dito scorre la pagina finché la
   scheda non si solleva); dopo, un `touchmove` non passivo annullato impedisce lo scorrimento (altrimenti Chromium
   manda `pointercancel`). Entro 60 px dal bordo alto/basso un ciclo `requestAnimationFrame`, attivo solo durante il
-  trascinamento, scorre la pagina a 600 px/s. L'orologio finto di Playwright controlla anche `requestAnimationFrame`:
+  trascinamento, scorre la pagina a 600 px/s; un rilascio in queste fasce conferma il segnaposto anche se è fuori
+  dalla griglia (altrove fuori dalla griglia annulla). L'orologio finto di Playwright controlla anche `requestAnimationFrame`:
   con `oraFissa` i fotogrammi avanzano solo con `app.avanzaOra(ms)` (circa uno ogni 16 ms).
   Tocco vero nei test: `page.touchscreen` fa solo tap; si usa `Input.dispatchTouchEvent` su una sessione CDP
   (`app.contesto.newCDPSession(app.page)`, helper `dito(app)` in `tests/trascina-schede.test.js`) in un viewport con
