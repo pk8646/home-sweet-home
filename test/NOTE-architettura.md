@@ -31,11 +31,14 @@ CasaNostra.ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località de
   Ordini gruppi impostazioni: generali 10, località 20, dashboard 30, schermo 40, backup 60, archivio 70, privacy 80, ripristino 90.
 - La dashboard disegna ogni scheda in isolamento (errore -> messaggio nella scheda) e salta quelle con
   `impostazioni.schedeVisibili[id] === false` (salvo `nascondibile:false`). `CasaNostra.ui.schede()` elenca le schede (per i toggle).
-  Ordine delle schede (#19): `CasaNostra.impostazioni.ordineEffettivo(ui.schede(), impostazioni)` dà le schede nell'ordine
-  da mostrare (fisse in cima, poi gli id validi di `ordineSchede`, poi le mancanti nell'ordine predefinito).
-  Per cambiarlo: `impostazioni.cambiaOrdineSchede(calcola(attuali) -> ordineSchede, mostra(salvate))` (in coda; a coda
-  vuota `mostra` riceve l'ordine salvato davvero, così dopo un errore lo schermo torna a prima) e
-  `impostazioni.ordineConMostrate(schede, imp, idMostrate)` (ordine completo con le nascoste attaccate alla precedente).
+  Ordine delle schede (#19): `CasaNostra.impostazioni.ordineEffettivo(ui.schede(), ordineSchede)` dà le schede nell'ordine
+  da mostrare (fisse in cima, poi gli id validi di `ordineSchede`, poi le mancanti nell'ordine predefinito);
+  `impostazioni.spostabile(def)` dice se una scheda non è fissa, `impostazioni.idSpostabili(schede, ordineSchede)` dà gli
+  id delle spostabili in ordine. Le funzioni d'ordine prendono l'array `ordineSchede`, non il record delle impostazioni.
+  Per cambiarlo: `impostazioni.cambiaOrdineSchede(calcola(ordineSchede) -> ordineSchede, mostra(ordineSchede | null))`
+  (in coda; a coda vuota `mostra` riceve l'ordine riletto dal database, così dopo un errore lo schermo torna all'ordine
+  salvato; `null` se anche la rilettura fallisce: chi chiama rimette l'ordine di prima del gesto) e
+  `impostazioni.ordineConMostrate(schede, ordineSchede, idMostrate)` (ordine completo con le nascoste attaccate alla precedente).
   Trascinamento (#20, in `js/sezioni/dashboard.js`): Pointer Events sul titolo `.scheda-titolo-spostabile`, cattura
   sulla griglia, pressione di 400 ms (setTimeout: nei test `apri({ ora, oraFissa: true })` + `app.avanzaOra(450)`),
   classi `.scheda-sollevata` e `.scheda-segnaposto`; le schede fisse hanno `data-fissa`.

@@ -3,7 +3,7 @@
  * CasaNostra.ui.registraScheda, nell'ordine delle schede (CasaNostra.impostazioni.ordineEffettivo), ciascuna in
  * isolamento (un errore resta dentro la sua scheda).
  * Le schede nascoste nelle impostazioni (schedeVisibili[id] === false) non vengono disegnate,
- * salvo quelle con nascondibile: false. Al cambio di giorno si ridisegnano le schede con dipendeDallaData.
+ * salvo quelle fisse (CasaNostra.impostazioni.spostabile falso). Al cambio di giorno si ridisegnano le schede con dipendeDallaData.
  *
  * Trascinamento (ticket #20): tenendo premuto il titolo di una scheda spostabile per PRESSIONE_MS, senza muoversi
  * più di SOGLIA_PX, la scheda si solleva e segue il puntatore, e un segnaposto occupa il punto d'arrivo. Un solo
@@ -55,8 +55,6 @@
     voce.griglia.insertBefore(voce.riquadro, dopo);
   }
 
-  function spostabile(def) { return def.nascondibile !== false; }
-
   function creaRiquadro(def) {
     var idTitolo = 'scheda-titolo-' + def.id;
     var corpo = ui.el('div', { class: 'scheda-corpo' });
@@ -66,7 +64,7 @@
     ]);
     var riquadro = ui.el('section', { class: 'scheda scheda-' + def.id, 'data-scheda': def.id, 'aria-labelledby': idTitolo }, [titolo, corpo]);
     var voce = { def: def, riquadro: riquadro, corpo: corpo };
-    if (spostabile(def)) {
+    if (CasaNostra.impostazioni.spostabile(def)) {
       titolo.classList.add('scheda-titolo-spostabile');
       titolo.appendChild(ui.el('span', { class: 'scheda-maniglia', 'aria-hidden': 'true', testo: '⠿' }));
       titolo.addEventListener('pointerdown', function (ev) { premi(voce, ev); });
@@ -200,7 +198,7 @@
     var sotto = null;
     for (var i = 0; i < figli.length && !sotto; i++) {
       var n = figli[i];
-      if (n === g.voce.riquadro || !n.hasAttribute('data-scheda') || n.hasAttribute('data-fissa')) continue;
+      if (n === g.voce.riquadro || !riquadroSpostabile(n)) continue;
       var r = n.getBoundingClientRect();
       if (g.x >= r.left && g.x <= r.right && g.y >= r.top && g.y <= r.bottom) sotto = n;
     }
@@ -273,11 +271,15 @@
     }
   }
 
+  /** true se il nodo è il riquadro di una scheda spostabile (non il segnaposto, non una scheda fissa). */
+  function riquadroSpostabile(n) {
+    return n.hasAttribute('data-scheda') && !n.hasAttribute('data-fissa');
+  }
+
   /** Gli id delle schede spostabili nella griglia, nell'ordine in cui compaiono. */
   function idMostrati(griglia) {
-    return Array.prototype.filter.call(griglia.children, function (n) {
-      return n.hasAttribute('data-scheda') && !n.hasAttribute('data-fissa');
-    }).map(function (n) { return n.getAttribute('data-scheda'); });
+    return Array.prototype.filter.call(griglia.children, riquadroSpostabile)
+      .map(function (n) { return n.getAttribute('data-scheda'); });
   }
 
   /** Mette `disegnate` nell'ordine `ids` (le fisse restano in testa) e i riquadri nella griglia nello stesso ordine. */
@@ -294,14 +296,13 @@
   function salvaOrdine(griglia, mostrate) {
     var prima = disegnate.map(function (v) { return v.def.id; });
     // Le schede che oggi sono fuori dalla griglia restano attaccate a quella che le precede (stessa regola del salvataggio).
-    ordina(griglia, CasaNostra.impostazioni.ordineConMostrate(disegnate.map(function (v) { return v.def; }),
-      { ordineSchede: prima }, mostrate));
+    ordina(griglia, CasaNostra.impostazioni.ordineConMostrate(disegnate.map(function (v) { return v.def; }), prima, mostrate));
     return CasaNostra.impostazioni.cambiaOrdineSchede(function (ordineSchede) {
-      return CasaNostra.impostazioni.ordineConMostrate(ui.schede(), { ordineSchede: ordineSchede }, mostrate);
+      return CasaNostra.impostazioni.ordineConMostrate(ui.schede(), ordineSchede, mostrate);
     }, function (salvato) {
       // A coda vuota la griglia mostra l'ordine salvato davvero (se non si legge, quello di prima del gesto).
       if (disegnate.length && disegnate[0].griglia === griglia) {
-        ordina(griglia, salvato ? CasaNostra.impostazioni.ordineEffettivo(ui.schede(), { ordineSchede: salvato })
+        ordina(griglia, salvato ? CasaNostra.impostazioni.ordineEffettivo(ui.schede(), salvato)
           .map(function (d) { return d.id; }) : prima);
       }
     }).catch(function (err) {
@@ -326,8 +327,8 @@
     return CasaNostra.impostazioni.leggi().catch(function () { return null; }).then(function (impostazioni) {
       var griglia = ui.el('div', { class: 'dashboard-griglia' });
       contenitore.appendChild(griglia);
-      var visibili = CasaNostra.impostazioni.ordineEffettivo(ui.schede(), impostazioni).filter(function (def) {
-        return def.nascondibile === false || CasaNostra.impostazioni.schedaVisibile(impostazioni, def.id);
+      var visibili = CasaNostra.impostazioni.ordineEffettivo(ui.schede(), impostazioni && impostazioni.ordineSchede).filter(function (def) {
+        return !CasaNostra.impostazioni.spostabile(def) || CasaNostra.impostazioni.schedaVisibile(impostazioni, def.id);
       });
       if (!visibili.length) {
         griglia.appendChild(ui.el('p', { class: 'vuoto', testo: 'Nessuna scheda da mostrare. Puoi riattivarle dalle Impostazioni.' }));

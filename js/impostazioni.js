@@ -5,9 +5,10 @@
  *   CasaNostra.impostazioni.aggiorna({ ... })     -> Promise<impostazioni aggiornate> (unione superficiale)
  *   CasaNostra.impostazioni.PREDEFINITE           -> valori predefiniti
  *
- *   CasaNostra.impostazioni.ordineEffettivo(schede, impostazioni) -> le definizioni delle schede nell'ordine delle schede
- *   CasaNostra.impostazioni.idSpostabili(schede, impostazioni)    -> gli id delle schede spostabili nell'ordine delle schede
- *   CasaNostra.impostazioni.ordineConMostrate(schede, impostazioni, mostrate) -> ordine completo da salvare dopo un riordino
+ *   CasaNostra.impostazioni.spostabile(def)                         -> true se la scheda non è fissa (nascondibile !== false)
+ *   CasaNostra.impostazioni.ordineEffettivo(schede, ordineSchede)   -> le definizioni delle schede nell'ordine delle schede
+ *   CasaNostra.impostazioni.idSpostabili(schede, ordineSchede)      -> gli id delle schede spostabili nell'ordine delle schede
+ *   CasaNostra.impostazioni.ordineConMostrate(schede, ordineSchede, mostrate) -> ordine completo da salvare dopo un riordino
  *   CasaNostra.impostazioni.cambiaOrdineSchede(calcola, mostra) -> Promise: salva in coda un nuovo ordineSchede
  *
  * schedeVisibili: { idScheda: false } nasconde una scheda della dashboard; un id assente = visibile.
@@ -68,16 +69,21 @@
     return !(impostazioni && impostazioni.schedeVisibili && impostazioni.schedeVisibili[idScheda] === false);
   }
 
+  /** true se la scheda si può spostare (e nascondere): le schede fisse hanno nascondibile: false. */
+  function spostabile(def) {
+    return def.nascondibile !== false;
+  }
+
   /**
-   * Le schede (definizioni, nell'ordine predefinito) nell'ordine delle schede: prima le schede fisse
-   * (nascondibile: false), poi quelle di impostazioni.ordineSchede nell'ordine salvato, poi le altre nell'ordine
-   * predefinito. Id sconosciuti, ripetuti o di schede fisse vengono ignorati.
+   * Le schede (definizioni, nell'ordine predefinito) nell'ordine delle schede: prima le schede fisse, poi quelle di
+   * ordineSchede nell'ordine salvato, poi le altre nell'ordine predefinito. Id sconosciuti, ripetuti o di schede fisse
+   * vengono ignorati; un ordineSchede che non è un elenco vale come vuoto.
    */
-  function ordineEffettivo(schede, impostazioni) {
-    var fisse = schede.filter(function (def) { return def.nascondibile === false; });
+  function ordineEffettivo(schede, ordineSchede) {
+    var fisse = schede.filter(function (def) { return !spostabile(def); });
     var spostabili = {};
-    schede.forEach(function (def) { if (def.nascondibile !== false) spostabili[def.id] = def; });
-    var salvato = impostazioni && Array.isArray(impostazioni.ordineSchede) ? impostazioni.ordineSchede : [];
+    schede.forEach(function (def) { if (spostabile(def)) spostabili[def.id] = def; });
+    var salvato = Array.isArray(ordineSchede) ? ordineSchede : [];
     var scelte = [];
     salvato.forEach(function (id) {
       if (typeof id === 'string' && Object.prototype.hasOwnProperty.call(spostabili, id)) {
@@ -90,9 +96,9 @@
   }
 
   /** Gli id delle schede spostabili (non fisse) nell'ordine delle schede. */
-  function idSpostabili(schede, impostazioni) {
-    return ordineEffettivo(schede, impostazioni)
-      .filter(function (def) { return def.nascondibile !== false; })
+  function idSpostabili(schede, ordineSchede) {
+    return ordineEffettivo(schede, ordineSchede)
+      .filter(spostabile)
       .map(function (def) { return def.id; });
   }
 
@@ -101,8 +107,8 @@
    * state messe in quest'ordine. Ogni scheda non mostrata resta attaccata alla scheda mostrata che la precede
    * nell'ordine attuale; quelle prima della prima scheda mostrata restano in testa. Id ignoti o fissi sono ignorati.
    */
-  function ordineConMostrate(schede, impostazioni, mostrate) {
-    var attuale = idSpostabili(schede, impostazioni);
+  function ordineConMostrate(schede, ordineSchede, mostrate) {
+    var attuale = idSpostabili(schede, ordineSchede);
     var mostrata = {};
     mostrate.forEach(function (id) { mostrata[id] = true; });
     var testa = [];
@@ -149,6 +155,7 @@
     leggi: leggi,
     aggiorna: aggiorna,
     schedaVisibile: schedaVisibile,
+    spostabile: spostabile,
     ordineEffettivo: ordineEffettivo,
     idSpostabili: idSpostabili,
     ordineConMostrate: ordineConMostrate,

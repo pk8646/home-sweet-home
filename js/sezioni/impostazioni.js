@@ -85,11 +85,6 @@
 
   // ---------- gruppo "Schede della dashboard": visibilità e ordine delle schede spostabili ----------
 
-  /** Gli id delle schede spostabili (non fisse) nell'ordine delle schede dato da ordineSchede. */
-  function ordineSpostabili(ordineSchede) {
-    return CasaNostra.impostazioni.idSpostabili(ui.schede(), { ordineSchede: ordineSchede });
-  }
-
   /** Funzione che, dato un ordine, restituisce l'ordine con la scheda idScheda scambiata con la vicina (passo -1 o +1). */
   function scambio(idScheda, passo) {
     return function (ordine) {
@@ -146,7 +141,7 @@
   ui.registraGruppoImpostazioni({
     id: 'dashboard', titolo: 'Schede della dashboard', ordine: 30,
     disegna: function (corpo) {
-      if (!ordineSpostabili([]).length) {
+      if (!CasaNostra.impostazioni.idSpostabili(ui.schede(), []).length) {
         corpo.appendChild(ui.el('p', { class: 'vuoto', testo: 'Nessuna scheda da configurare.' }));
         return;
       }
@@ -154,7 +149,7 @@
         var definizioni = {};
         ui.schede().forEach(function (def) { definizioni[def.id] = def; });
         var righe = {};
-        var ordineSalvato = ordineSpostabili(imp.ordineSchede);
+        var ordineSalvato = CasaNostra.impostazioni.idSpostabili(ui.schede(), imp.ordineSchede);
         var elenco = ui.el('ul', { class: 'impostazioni-schede' }, ordineSalvato.map(function (idScheda) {
           righe[idScheda] = rigaScheda(definizioni[idScheda], imp, cambiaOrdine);
           return righe[idScheda];
@@ -185,11 +180,11 @@
          */
         function cambiaOrdine(calcola) {
           var prima = ordineSulloSchermo();
-          mostra(ordineSpostabili(calcola(prima)));
+          mostra(CasaNostra.impostazioni.idSpostabili(ui.schede(), calcola(prima)));
           return CasaNostra.impostazioni.cambiaOrdineSchede(function (ordineSchede) {
-            return calcola(ordineSpostabili(ordineSchede));
+            return calcola(CasaNostra.impostazioni.idSpostabili(ui.schede(), ordineSchede));
           }, function (salvato) {
-            mostra(salvato ? ordineSpostabili(salvato) : prima);
+            mostra(salvato ? CasaNostra.impostazioni.idSpostabili(ui.schede(), salvato) : prima);
           });
         }
 
