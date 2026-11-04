@@ -39,14 +39,19 @@
     return r;
   }
 
-  function leggi() {
+  function leggiOra() {
     return CasaNostra.db.raccolta('impostazioni').get(ID).then(completa);
   }
 
   var coda = Promise.resolve();
 
+  /** Legge dopo gli aggiornamenti già in coda: vede sempre l'ultimo salvataggio chiesto. */
+  function leggi() {
+    return coda.catch(function () {}).then(leggiOra);
+  }
+
   function aggiorna(parziale) {
-    var turno = coda.catch(function () {}).then(leggi).then(function (attuali) {
+    var turno = coda.catch(function () {}).then(leggiOra).then(function (attuali) {
       var campi = typeof parziale === 'function' ? parziale(copia(attuali)) : parziale;
       var nuove = completa(Object.assign(attuali, campi || {}));
       return CasaNostra.db.raccolta('impostazioni').put(nuove);

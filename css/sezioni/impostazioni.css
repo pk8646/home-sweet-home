@@ -33,6 +33,22 @@
   cursor: pointer;
 }
 
+/* Ordine delle schede (#19): ogni riga ha l'interruttore e i pulsanti per spostare la scheda. */
+.impostazioni-scheda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.impostazioni-scheda .impostazioni-interruttore { flex: 1 1 auto; min-width: 0; }
+.impostazioni-sposta-pulsanti { display: flex; flex: 0 0 auto; gap: 4px; }
+.impostazioni-sposta { font-size: 1rem; }
+.impostazioni-sposta[aria-disabled="true"] { opacity: 0.35; cursor: default; }
+.impostazioni-sposta[aria-disabled="true"]:hover { background: transparent; }
+/* Contorno del fuoco solo da tastiera, come in base.css (ripiego :focus per Chromium < 86). */
+.impostazioni-sposta:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+.impostazioni-sposta:focus:not(:focus-visible) { outline: none; }
+.impostazioni-ripristina-ordine { margin-top: 12px; }
+
 .privacy-elenco { margin: 0; padding-left: 1.25em; }
 .privacy-elenco li + li { margin-top: 6px; }
 
