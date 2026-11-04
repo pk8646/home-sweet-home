@@ -110,7 +110,6 @@
     if (riquadro.parentNode !== g.griglia) return fine();
     var r = riquadro.getBoundingClientRect();
     g.attivo = true;
-    g.figliPrima = Array.prototype.slice.call(g.griglia.children);
     g.ordinePrima = idMostrati(g.griglia);
     g.scostamentoX = g.x - r.left;
     g.scostamentoY = g.y - r.top;
@@ -197,12 +196,12 @@
     if (gesto && ev.pointerId === gesto.idPuntatore) annulla();
   }
 
-  /** Annulla il gesto: la scheda torna dov'era. */
+  /** Annulla il gesto: la scheda torna dov'era (disegnate non cambia durante il gesto). */
   function annulla() {
     var g = gesto;
     if (!g) return;
     fine();
-    if (g.figliPrima) g.figliPrima.forEach(function (n) { if (n.parentNode === g.griglia) g.griglia.appendChild(n); });
+    if (g.attivo) ordina(g.griglia, disegnate.map(function (v) { return v.def.id; }));
   }
 
   /** Chiude il gesto: toglie timer, ascoltatori, segnaposto e aspetto sollevato (la scheda resta dove si trova). */

@@ -120,22 +120,27 @@
   }
 
   var ordiniInAttesa = 0;
+  var ultimeSalvate = null; // le impostazioni nel database dopo l'ultimo cambio d'ordine finito
 
   /**
    * Salva in coda un nuovo ordine delle schede: calcola(impostazioni attuali) -> ordineSchede, eseguita al proprio
    * turno (vede i salvataggi precedenti). Quando non resta nessun cambio d'ordine in coda, mostra(impostazioni) riceve
-   * le impostazioni salvate davvero: se un salvataggio è fallito, chi chiama rimette sullo schermo l'ordine di prima.
-   * La Promise restituita rifiuta se il salvataggio fallisce.
+   * subito le impostazioni salvate davvero: se un salvataggio è fallito, chi chiama rimette sullo schermo l'ordine
+   * di prima. La Promise restituita rifiuta se il salvataggio fallisce.
    */
   function cambiaOrdineSchede(calcola, mostra) {
     ordiniInAttesa++;
-    function fine() {
-      if (--ordiniInAttesa > 0) return;
-      leggi().then(mostra).catch(function (err) { CasaNostra.errori.registra(err, 'lettura dell\'ordine delle schede'); });
+    var prima = null;
+    var dopo = null;
+    function fine(salvate) {
+      if (salvate) ultimeSalvate = salvate;
+      if (--ordiniInAttesa === 0 && ultimeSalvate) mostra(copia(ultimeSalvate));
     }
     return aggiorna(function (attuali) {
-      return { ordineSchede: calcola(attuali) };
-    }).then(fine, function (err) { fine(); throw err; });
+      prima = attuali;
+      dopo = completa(Object.assign(copia(attuali), { ordineSchede: calcola(copia(attuali)) }));
+      return { ordineSchede: dopo.ordineSchede };
+    }).then(function () { fine(dopo); }, function (err) { fine(prima); throw err; });
   }
 
   CasaNostra.impostazioni = {
