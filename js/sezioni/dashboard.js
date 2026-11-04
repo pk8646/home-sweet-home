@@ -1,6 +1,7 @@
 /*
  * CasaNostra.sezioni.dashboard — la Home: disegna in una griglia tutte le schede registrate con
- * CasaNostra.ui.registraScheda, ciascuna in isolamento (un errore resta dentro la sua scheda).
+ * CasaNostra.ui.registraScheda, nell'ordine delle schede (CasaNostra.impostazioni.ordineEffettivo), ciascuna in
+ * isolamento (un errore resta dentro la sua scheda).
  * Le schede nascoste nelle impostazioni (schedeVisibili[id] === false) non vengono disegnate,
  * salvo quelle con nascondibile: false. Al cambio di giorno si ridisegnano le schede con dipendeDallaData.
  */
@@ -71,7 +72,7 @@
     return CasaNostra.impostazioni.leggi().catch(function () { return null; }).then(function (impostazioni) {
       var griglia = ui.el('div', { class: 'dashboard-griglia' });
       contenitore.appendChild(griglia);
-      var visibili = ui.schede().filter(function (def) {
+      var visibili = CasaNostra.impostazioni.ordineEffettivo(ui.schede(), impostazioni).filter(function (def) {
         return def.nascondibile === false || CasaNostra.impostazioni.schedaVisibile(impostazioni, def.id);
       });
       if (!visibili.length) {
