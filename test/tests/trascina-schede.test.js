@@ -47,12 +47,16 @@ async function premiTitolo(app, id) {
   return p;
 }
 
-/** Tiene premuto il titolo di `id` per 400 ms e porta il puntatore sopra la scheda `su` (senza rilasciare). */
+/**
+ * Tiene premuto il titolo di `id` per 400 ms e porta il puntatore sopra la scheda `su` (senza rilasciare).
+ * Un solo passo: un percorso a più passi può attraversare altre schede (su più colonne dipende dal viewport)
+ * e ogni scheda attraversata sposta il segnaposto.
+ */
 async function afferraEPorta(app, id, su) {
   await premiTitolo(app, id);
   await app.avanzaOra(450);
   const p = await puntoIn(scheda(app.page, su));
-  await app.page.mouse.move(p.x, p.y, { steps: 8 });
+  await app.page.mouse.move(p.x, p.y);
   return p;
 }
 
@@ -114,7 +118,7 @@ test('una pressione breve, o un movimento oltre la soglia prima dei 400 ms, non 
   await app.avanzaOra(500);
   assert.equal(await contaSegnaposto(app.page), 0);
   const su = await puntoIn(scheda(app.page, 'meteo'));
-  await app.page.mouse.move(su.x, su.y, { steps: 4 });
+  await app.page.mouse.move(su.x, su.y);
   await app.page.mouse.up();
   assert.deepEqual(await schedeDashboard(app.page), prima);
 
@@ -138,7 +142,7 @@ test('la pressione prolungata sul corpo di una scheda non avvia il trascinamento
   await app.avanzaOra(600);
   assert.equal(await contaSegnaposto(app.page), 0);
   const su = await puntoIn(scheda(app.page, 'meteo'));
-  await app.page.mouse.move(su.x, su.y, { steps: 6 });
+  await app.page.mouse.move(su.x, su.y);
   await app.page.mouse.up();
   assert.deepEqual(await schedeDashboard(app.page), prima);
 });
@@ -162,13 +166,15 @@ test('mentre si trascina la scheda è sollevata e segue il puntatore, e il segna
 
   // la scheda segue il puntatore
   await app.page.mouse.move(p.x + 3, p.y - 7);
-  const dopo = await scheda(app.page, 'spesa').boundingBox();
-  assert.ok(Math.abs(dopo.x - (misure.x + 3)) < 1 && Math.abs(dopo.y - (misure.y - 7)) < 1, 'segue il puntatore');
+  await attendi(async () => {
+    const dopo = await scheda(app.page, 'spesa').boundingBox();
+    assert.ok(Math.abs(dopo.x - (misure.x + 3)) < 1 && Math.abs(dopo.y - (misure.y - 7)) < 1, 'segue il puntatore');
+  });
 
   // portata sopra Attività, il segnaposto prende il suo posto e Attività scende
   const su = await puntoIn(scheda(app.page, 'attivita'));
-  await app.page.mouse.move(su.x, su.y, { steps: 6 });
-  assert.deepEqual(await figliGriglia(app.page), ['meteo', 'agenda', 'spesa', 'scheda-segnaposto', 'attivita', 'casa', 'foto']);
+  await app.page.mouse.move(su.x, su.y);
+  await attendi(async () => assert.deepEqual(await figliGriglia(app.page), ['meteo', 'agenda', 'spesa', 'scheda-segnaposto', 'attivita', 'casa', 'foto']));
   await app.page.mouse.up();
   assert.equal(await contaSegnaposto(app.page), 0);
   assert.equal(await scheda(app.page, 'spesa').evaluate((n) => getComputedStyle(n).position), 'static');
@@ -190,7 +196,7 @@ test('le schede fisse non si trascinano e nessuna scheda può essere lasciata pr
   await app.avanzaOra(600);
   assert.equal(await contaSegnaposto(app.page), 0);
   const su = await puntoIn(scheda(app.page, 'agenda'));
-  await app.page.mouse.move(su.x, su.y, { steps: 6 });
+  await app.page.mouse.move(su.x, su.y);
   await app.page.mouse.up();
   assert.deepEqual(await schedeDashboard(app.page), prima);
 });
@@ -272,10 +278,10 @@ test('se l\'ordine non è cambiato non si salva niente', async ({ apri }) => {
   await app.page.evaluate(() => { window.__guasto = true; });
   // portata sopra un'altra scheda e poi riportata al suo posto
   await afferraEPorta(app, 'agenda', 'meteo');
-  assert.deepEqual(await figliGriglia(app.page), ['agenda', 'scheda-segnaposto', 'meteo', 'attivita', 'spesa', 'casa', 'foto']);
+  await attendi(async () => assert.deepEqual(await figliGriglia(app.page), ['agenda', 'scheda-segnaposto', 'meteo', 'attivita', 'spesa', 'casa', 'foto']));
   const ritorno = await puntoIn(scheda(app.page, 'meteo'));
-  await app.page.mouse.move(ritorno.x, ritorno.y, { steps: 6 });
-  assert.deepEqual(await figliGriglia(app.page), ['meteo', 'agenda', 'scheda-segnaposto', 'attivita', 'spesa', 'casa', 'foto']);
+  await app.page.mouse.move(ritorno.x, ritorno.y);
+  await attendi(async () => assert.deepEqual(await figliGriglia(app.page), ['meteo', 'agenda', 'scheda-segnaposto', 'attivita', 'spesa', 'casa', 'foto']));
   await app.page.mouse.up();
   assert.deepEqual(await schedeDashboard(app.page), ['meteo', 'agenda', 'attivita', 'spesa', 'casa', 'foto']);
   await app.avanzaOra(1000);
@@ -291,7 +297,8 @@ test('se il salvataggio fallisce l\'ordine sullo schermo torna quello di prima e
   await attendi(async () => assert.match(await app.page.locator('body').textContent(), /Spazio esaurito/));
   await attendi(async () => assert.deepEqual(await schedeDashboard(app.page), prima));
   await app.page.evaluate(() => { window.__guasto = false; });
-  // dopo l'errore il trascinamento continua a funzionare
+  // dopo l'errore il trascinamento continua a funzionare (un secondo trascinamento col mouse non diventa un
+  // drag-and-drop nativo di una selezione del testo, che il browser annullerebbe con pointercancel)
   await afferraEPorta(app, 'spesa', 'agenda');
   await app.page.mouse.up();
   assert.deepEqual(await schedeDashboard(app.page), ['meteo', 'spesa', 'agenda', 'attivita', 'casa', 'foto']);

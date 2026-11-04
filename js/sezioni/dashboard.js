@@ -82,6 +82,10 @@
 
   function premi(voce, ev) {
     if (gesto || !ev.isPrimary || ev.button !== 0 || !voce.griglia) return;
+    // Niente azione predefinita del mouse: non parte una selezione del testo, che a un trascinamento successivo
+    // diventerebbe un drag-and-drop nativo (e il browser manderebbe pointercancel). Sul tocco lo scorrimento non
+    // dipende da questo, ma da touch-action.
+    ev.preventDefault();
     gesto = {
       voce: voce, griglia: voce.griglia, idPuntatore: ev.pointerId,
       inizioX: ev.clientX, inizioY: ev.clientY, x: ev.clientX, y: ev.clientY,
@@ -110,6 +114,9 @@
     g.ordinePrima = idMostrati(g.griglia);
     g.scostamentoX = g.x - r.left;
     g.scostamentoY = g.y - r.top;
+    // Durante il gesto la griglia non si accorcia: se la pagina si accorciasse, lo scorrimento tornerebbe
+    // indietro e le schede salterebbero sotto il puntatore fermo.
+    g.griglia.style.minHeight = g.griglia.getBoundingClientRect().height + 'px';
     g.segnaposto = ui.el('div', { class: 'scheda-segnaposto', 'aria-hidden': 'true' });
     g.segnaposto.style.height = r.height + 'px';
     g.griglia.insertBefore(g.segnaposto, riquadro.nextSibling);
@@ -173,6 +180,7 @@
     g.y = ev.clientY;
     if (!g.attivo) return fine();
     if (!dentroGriglia(g)) return annulla();
+    spostaSegnaposto(g); // il rilascio può arrivare in un punto nuovo, senza un pointermove prima
     fine();
     var mostrate = idMostrati(g.griglia);
     if (mostrate.join() !== g.ordinePrima.join()) salvaOrdine(g.griglia, mostrate);
@@ -212,6 +220,7 @@
       if (g.griglia.hasPointerCapture(g.idPuntatore)) g.griglia.releasePointerCapture(g.idPuntatore);
     } catch (e) { /* già rilasciato */ }
     if (g.segnaposto) {
+      g.griglia.style.minHeight = '';
       if (g.segnaposto.parentNode) g.segnaposto.parentNode.removeChild(g.segnaposto);
       var s = g.voce.riquadro.style;
       s.left = s.top = s.width = s.height = '';
