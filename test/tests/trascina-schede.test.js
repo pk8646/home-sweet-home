@@ -337,3 +337,163 @@ test('il trascinamento sposta i riquadri senza ridisegnarli: il cambio di giorno
   await attendi(async () => assert.ok(previsioni.richieste.length >= 1, 'il meteo si aggiorna dopo 30 minuti'));
   assert.deepEqual(await schedeDashboard(app.page), atteso);
 });
+
+// ---------- tocco vero (ticket #21) ----------
+// page.touchscreen fa solo tap: gli eventi touch passano da CDP (Input.dispatchTouchEvent), che li fa entrare nella
+// pipeline di input di Chromium come un dito vero (con touch-action, scorrimento e pointercancel). Serve un contesto
+// con touch: il viewport smartphone ce l'ha.
+
+/** Un dito su CDP: giu(x, y), sposta(x, y, passi), su(). */
+async function dito(app) {
+  const cdp = await app.contesto.newCDPSession(app.page);
+  let ultimo = null;
+  function invia(type, punto) {
+    return cdp.send('Input.dispatchTouchEvent', { type: type, touchPoints: punto ? [{ x: punto.x, y: punto.y }] : [] });
+  }
+  return {
+    async giu(x, y) { ultimo = { x, y }; await invia('touchStart', ultimo); },
+    async sposta(x, y, passi) {
+      const da = ultimo;
+      const n = passi || 1;
+      for (let i = 1; i <= n; i++) {
+        ultimo = { x: da.x + (x - da.x) * i / n, y: da.y + (y - da.y) * i / n };
+        await invia('touchMove', ultimo);
+      }
+    },
+    async su() { await invia('touchEnd', null); }
+  };
+}
+
+/** Il punto del titolo di `id` da toccare (porta il titolo al centro della finestra). */
+async function puntoTitolo(app, id) {
+  const titolo = scheda(app.page, id).locator('.scheda-titolo');
+  await titolo.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  const b = await titolo.boundingBox();
+  return { x: b.x + 20, y: b.y + b.height / 2 };
+}
+
+function scorrimento(page) { return page.evaluate(() => Math.round(window.scrollY)); }
+
+test('col dito, uno scorrimento che parte dal titolo fa scorrere la pagina e non trascina la scheda', async ({ apri }) => {
+  const app = await apriDashboard(apri, { viewport: 'smartphone' });
+  const prima = await schedeDashboard(app.page);
+  const p = await puntoTitolo(app, 'spesa');
+  const y0 = await scorrimento(app.page);
+  const d = await dito(app);
+  await d.giu(p.x, p.y);
+  await d.sposta(p.x, p.y - 200, 10);
+  await attendi(async () => assert.ok(await scorrimento(app.page) > y0 + 100, 'la pagina scorre'));
+  await app.avanzaOra(600);
+  assert.equal(await contaSegnaposto(app.page), 0);
+  await d.su();
+  assert.deepEqual(await schedeDashboard(app.page), prima);
+});
+
+test('col dito, una pressione prolungata sul titolo seguita da uno spostamento riordina, e la pagina non scorre sotto il dito', async ({ apri }) => {
+  const app = await apriDashboard(apri, { viewport: 'smartphone' });
+  assert.deepEqual(await schedeDashboard(app.page), ['meteo', 'agenda', 'attivita', 'spesa', 'casa', 'foto']);
+  const p = await puntoTitolo(app, 'spesa');
+  const y0 = await scorrimento(app.page);
+  const d = await dito(app);
+  await d.giu(p.x, p.y);
+  await app.avanzaOra(450);
+  assert.equal(await contaSegnaposto(app.page), 1);
+  const su = await puntoIn(scheda(app.page, 'attivita'));
+  await d.sposta(su.x, su.y, 8);
+  await attendi(async () => assert.deepEqual(await figliGriglia(app.page), ['meteo', 'agenda', 'spesa', 'scheda-segnaposto', 'attivita', 'casa', 'foto']));
+  assert.equal(await scorrimento(app.page), y0, 'la pagina non scorre sotto il dito');
+  await d.su();
+  assert.deepEqual(await schedeDashboard(app.page), ['meteo', 'agenda', 'spesa', 'attivita', 'casa', 'foto']);
+  await salvataggiFiniti(app);
+  await app.ricarica();
+  assert.deepEqual(await schedeDashboard(app.page), ['meteo', 'agenda', 'spesa', 'attivita', 'casa', 'foto']);
+});
+
+test('la pressione prolungata sul titolo non apre il menu contestuale e non seleziona il testo', async ({ apri }) => {
+  const app = await apriDashboard(apri, { viewport: 'smartphone' });
+  const titolo = scheda(app.page, 'agenda').locator('.scheda-titolo');
+  // Il menu contestuale arriva al titolo come evento contextmenu (su touch dopo la pressione prolungata). Chrome sul
+  // computer non lo genera da una pressione lunga via CDP, quindi l'evento si manda a mano: va annullato.
+  const prevenuto = await titolo.evaluate((el) => {
+    const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    el.dispatchEvent(ev);
+    return ev.defaultPrevented;
+  });
+  assert.equal(prevenuto, true, 'il menu contestuale non si apre');
+  assert.equal(await titolo.evaluate((el) => getComputedStyle(el).userSelect), 'none', 'niente selezione del testo');
+});
+
+// ---------- scorrimento automatico (ticket #21) ----------
+
+/** scriptIniziale: conta i requestAnimationFrame ancora in attesa (window.__fotogrammiInAttesa()). */
+function contaFotogrammi() {
+  const raf = window.requestAnimationFrame;
+  const caf = window.cancelAnimationFrame;
+  const attesa = new Set();
+  window.__fotogrammiInAttesa = () => attesa.size;
+  window.requestAnimationFrame = function (fn) {
+    const id = raf.call(window, function () { attesa.delete(id); return fn.apply(this, arguments); });
+    attesa.add(id);
+    return id;
+  };
+  window.cancelAnimationFrame = function (id) { attesa.delete(id); return caf.call(window, id); };
+}
+
+test('vicino al bordo alto la pagina sale da sola a velocità fissa: con lo smartphone l\'ultima scheda va in prima posizione', async ({ apri }) => {
+  const app = await apriDashboard(apri, { viewport: 'smartphone', scriptIniziale: conImpostazioni({}) + '(' + contaFotogrammi + ')();' });
+  assert.deepEqual(await schedeDashboard(app.page), ['meteo', 'agenda', 'attivita', 'spesa', 'casa', 'foto']);
+  await app.avanzaOra(1000);
+  assert.equal(await app.page.evaluate(() => window.__fotogrammiInAttesa()), 0, 'nessun ciclo prima del trascinamento');
+  await app.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const p = await premiTitolo(app, 'foto');
+  await app.avanzaOra(450);
+  assert.equal(await contaSegnaposto(app.page), 1);
+  const ySotto = await scorrimento(app.page);
+  assert.ok(ySotto > 300, 'la prima scheda è fuori dalla finestra');
+
+  // al centro della finestra la pagina resta ferma
+  await app.page.mouse.move(p.x, 400);
+  await app.avanzaOra(500);
+  assert.equal(await scorrimento(app.page), ySotto);
+
+  // entro 60 px dal bordo alto la pagina sale a velocità fissa
+  await app.page.mouse.move(p.x, 30);
+  await app.avanzaOra(200);
+  const dopo200 = await scorrimento(app.page);
+  assert.ok(dopo200 < ySotto, 'la pagina sale');
+  await app.avanzaOra(200);
+  const dopo400 = await scorrimento(app.page);
+  assert.ok(Math.abs((ySotto - dopo200) - (dopo200 - dopo400)) <= 20, 'velocità fissa: ' + [ySotto, dopo200, dopo400]);
+  await app.avanzaOra(10000);
+  assert.equal(await scorrimento(app.page), 0, 'arriva in cima');
+  // mentre la pagina scorre il segnaposto segue le schede che passano sotto il puntatore fermo
+  assert.deepEqual(await figliGriglia(app.page), ['foto', 'scheda-segnaposto', 'meteo', 'agenda', 'attivita', 'spesa', 'casa']);
+  // si lascia la scheda sul segnaposto (in cima alla pagina il bordo alto è sopra la griglia)
+  const su = await puntoIn(app.page.locator('.scheda-segnaposto'));
+  await app.page.mouse.move(su.x, su.y);
+  await app.page.mouse.up();
+  assert.deepEqual(await schedeDashboard(app.page), ['foto', 'meteo', 'agenda', 'attivita', 'spesa', 'casa']);
+
+  // il ciclo esiste solo durante il trascinamento
+  await app.avanzaOra(1000);
+  assert.equal(await app.page.evaluate(() => window.__fotogrammiInAttesa()), 0, 'nessun ciclo dopo il trascinamento');
+  await salvataggiFiniti(app);
+  await app.ricarica();
+  assert.deepEqual(await schedeDashboard(app.page), ['foto', 'meteo', 'agenda', 'attivita', 'spesa', 'casa']);
+});
+
+test('vicino al bordo basso la pagina scende da sola', async ({ apri }) => {
+  const app = await apriDashboard(apri, { viewport: 'smartphone' });
+  await app.page.evaluate(() => window.scrollTo(0, 0));
+  const t = await scheda(app.page, 'meteo').locator('.scheda-titolo').boundingBox();
+  await app.page.mouse.move(t.x + 20, t.y + t.height / 2);
+  await app.page.mouse.down();
+  await app.avanzaOra(450);
+  assert.equal(await contaSegnaposto(app.page), 1);
+  const altezza = await app.page.evaluate(() => window.innerHeight);
+  await app.page.mouse.move(t.x + 20, altezza - 20);
+  await app.avanzaOra(300);
+  assert.ok(await scorrimento(app.page) > 0, 'la pagina scende');
+  await app.page.keyboard.press('Escape');
+  await app.page.mouse.up();
+});

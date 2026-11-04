@@ -10,6 +10,8 @@
  * gestore a Pointer Events, con la stessa regola per mouse, dito e penna (niente HTML5 drag-and-drop). Il rilascio
  * dentro la griglia salva l'ordine con CasaNostra.impostazioni.cambiaOrdineSchede; il rilascio fuori dalla griglia,
  * Esc e pointercancel annullano. Il gesto sposta i riquadri: le schede non si ridisegnano.
+ * Col dito (ticket #21) uno scorrimento che parte dal titolo resta uno scorrimento; a scheda sollevata la pagina non
+ * scorre più sotto il dito e, col puntatore vicino al bordo della finestra, scorre da sola (scorri).
  */
 (function (CasaNostra) {
   'use strict';
@@ -68,6 +70,11 @@
       titolo.classList.add('scheda-titolo-spostabile');
       titolo.appendChild(ui.el('span', { class: 'scheda-maniglia', 'aria-hidden': 'true', testo: '⠿' }));
       titolo.addEventListener('pointerdown', function (ev) { premi(voce, ev); });
+      // touch-action si legge solo all'inizio del tocco, quindi non può cambiare a metà gesto: finché la scheda non
+      // si solleva il dito scorre la pagina; dopo, il primo touchmove annullato impedisce al browser di iniziare a
+      // scorrere (altrimenti manderebbe pointercancel). Serve un ascoltatore non passivo.
+      titolo.addEventListener('touchmove', trattieni, { passive: false });
+      titolo.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
     } else {
       riquadro.setAttribute('data-fissa', '');
     }
@@ -78,6 +85,9 @@
 
   var PRESSIONE_MS = 400;
   var SOGLIA_PX = 10;
+  var BORDO_PX = 60;
+  var VELOCITA_PX_S = 600;
+  var scorriProtetta = CasaNostra.errori.protetta(scorri, 'scorrimento automatico');
   var gesto = null; // il gesto in corso: uno solo alla volta
 
   function premi(voce, ev) {
@@ -116,6 +126,9 @@
     // Durante il gesto la griglia non si accorcia: se la pagina si accorciasse, lo scorrimento tornerebbe
     // indietro e le schede salterebbero sotto il puntatore fermo.
     g.griglia.style.minHeight = g.griglia.getBoundingClientRect().height + 'px';
+    // Niente ancoraggio dello scorrimento: quando il segnaposto si sposta sopra le schede visibili il browser
+    // correggerebbe lo scorrimento da solo, e le schede sotto il puntatore cambierebbero di nuovo.
+    g.griglia.style.overflowAnchor = 'none';
     g.segnaposto = ui.el('div', { class: 'scheda-segnaposto', 'aria-hidden': 'true' });
     g.segnaposto.style.height = r.height + 'px';
     g.griglia.insertBefore(g.segnaposto, riquadro.nextSibling);
@@ -124,6 +137,32 @@
     riquadro.classList.add('scheda-sollevata');
     segui(g);
     document.addEventListener('keydown', tasto, true);
+    g.fotogramma = requestAnimationFrame(scorriProtetta);
+  }
+
+  /**
+   * Scorrimento automatico: un ciclo requestAnimationFrame che esiste solo a scheda sollevata. Col puntatore entro
+   * BORDO_PX dal bordo alto o basso della finestra la pagina scorre a VELOCITA_PX_S; le schede passano sotto il
+   * puntatore fermo, quindi il segnaposto si riposiziona.
+   */
+  function scorri(istante) {
+    var g = gesto;
+    if (!g || !g.attivo) return;
+    var direzione = g.y < BORDO_PX ? -1 : (g.y > window.innerHeight - BORDO_PX ? 1 : 0);
+    // Il primo fotogramma (e uno dopo una pausa lunga della pagina) non scorre: conta solo il tempo tra due fotogrammi vicini.
+    var trascorso = g.istantePrima === undefined ? 0 : Math.min(istante - g.istantePrima, 100);
+    g.istantePrima = istante;
+    if (direzione && trascorso > 0) {
+      var prima = window.pageYOffset;
+      window.scrollBy(0, direzione * Math.max(1, Math.round(VELOCITA_PX_S * trascorso / 1000)));
+      if (window.pageYOffset !== prima) spostaSegnaposto(g);
+    }
+    g.fotogramma = requestAnimationFrame(scorriProtetta);
+  }
+
+  /** Col dito, a scheda sollevata la pagina non scorre più sotto il dito. */
+  function trattieni(ev) {
+    if (gesto && gesto.attivo && ev.cancelable) ev.preventDefault();
   }
 
   /** La scheda sollevata segue il puntatore. */
@@ -210,6 +249,7 @@
     if (!g) return;
     gesto = null;
     if (g.timer) clearTimeout(g.timer);
+    if (g.fotogramma) cancelAnimationFrame(g.fotogramma);
     g.griglia.removeEventListener('pointermove', muovi);
     g.griglia.removeEventListener('pointerup', rilascia);
     g.griglia.removeEventListener('pointercancel', annullaPuntatore);
@@ -219,7 +259,7 @@
       if (g.griglia.hasPointerCapture(g.idPuntatore)) g.griglia.releasePointerCapture(g.idPuntatore);
     } catch (e) { /* già rilasciato */ }
     if (g.segnaposto) {
-      g.griglia.style.minHeight = '';
+      g.griglia.style.minHeight = g.griglia.style.overflowAnchor = '';
       if (g.segnaposto.parentNode) g.segnaposto.parentNode.removeChild(g.segnaposto);
       var s = g.voce.riquadro.style;
       s.left = s.top = s.width = s.height = '';

@@ -39,6 +39,15 @@ CasaNostra.ui.registraGruppoImpostazioni({ id: 'localita', titolo: 'Località de
   Trascinamento (#20, in `js/sezioni/dashboard.js`): Pointer Events sul titolo `.scheda-titolo-spostabile`, cattura
   sulla griglia, pressione di 400 ms (setTimeout: nei test `apri({ ora, oraFissa: true })` + `app.avanzaOra(450)`),
   classi `.scheda-sollevata` e `.scheda-segnaposto`; le schede fisse hanno `data-fissa`.
+  Tocco e scorrimento automatico (#21): il titolo ha `touch-action: manipulation` (il dito scorre la pagina finché la
+  scheda non si solleva); dopo, un `touchmove` non passivo annullato impedisce lo scorrimento (altrimenti Chromium
+  manda `pointercancel`). Entro 60 px dal bordo alto/basso un ciclo `requestAnimationFrame`, attivo solo durante il
+  trascinamento, scorre la pagina a 600 px/s. L'orologio finto di Playwright controlla anche `requestAnimationFrame`:
+  con `oraFissa` i fotogrammi avanzano solo con `app.avanzaOra(ms)` (circa uno ogni 16 ms).
+  Tocco vero nei test: `page.touchscreen` fa solo tap; si usa `Input.dispatchTouchEvent` su una sessione CDP
+  (`app.contesto.newCDPSession(app.page)`, helper `dito(app)` in `tests/trascina-schede.test.js`) in un viewport con
+  touch (tutti tranne `desktop`: per i test sul tocco forzare `viewport: 'smartphone'`). Chrome sul computer non genera
+  `contextmenu` da una pressione lunga via CDP.
 - Una sezione segnaposto `ui.registraSezione` va sostituita, non duplicata (stesso id = sovrascrive).
 - Pagina Impostazioni (`js/sezioni/impostazioni.js`) già compone i gruppi registrati, ciascuno in isolamento.
 

@@ -17,6 +17,9 @@
   cursor: grab;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
+  /* Il dito scorre la pagina finché la scheda non si solleva (poi lo blocca il touchmove annullato in dashboard.js). */
+  touch-action: manipulation;
 }
 
 .scheda-maniglia {
